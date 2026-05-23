@@ -140,7 +140,6 @@ _start:
     cmp rax, 5
     jne usage_error
 
-;------------here
     ; ── brk allocate ─────────────────────────────────────────────────────────
     mov rax, 12         ; sys_brk
     xor rdi, rdi        ; pass 0 to get current break
@@ -181,8 +180,6 @@ _start:
     add rdi, [input_size]
     add rdi, [input_size] ;allocating double the length to the output so i dont have to reallocate.
     syscall
-;-----here
-
 
 build:
     call filter_text
