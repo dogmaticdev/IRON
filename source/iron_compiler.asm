@@ -35,15 +35,9 @@ align 16
     letters2: db 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     despace:  db 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
 
-
-    ;extra_table:
-        ;dq .hex_table
-        ;dq .alphabet_table
-
     factor_string: db "factor", 0x00
 
     build_string: db "build", 0x00
-
 
     usage:              db "Usage: ./iron <input> <database> <output>", 10
     usage_length:       equ $ - usage
@@ -482,8 +476,6 @@ minus: ;Minus "-", move source read pointer to the next word.
     call skip_string
     jmp next_loop
 
-
-
 do_factor:
     ; ── brk allocate ─────────────────────────────────────────────────────────
     mov rax, 12         ; sys_brk
@@ -547,8 +539,6 @@ factor_end:
     cmp     rax, 0
     jl      open_output_error
     mov     [output_descriptor], rax
-
-
 
     ; ── Write buffer to output file ──────────────────────────────────────────
     mov     rax, 1 ;write
