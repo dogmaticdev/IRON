@@ -186,15 +186,19 @@ Ex:
 `= Hello , = World` Would print out: `Hello, World`
 
 # "."
-This is used to add a new line or /n or 0x10 to the end of an command, and to begin the next command.
+This is used to add a new line a.k.a. /n or 0x10 to the end of an command, and to begin the next command.
 EX:
-`Print "Hello World" Print "Hello World"`
+`= "Hello World" . = "Hello World"`
 Outputs:
 `Hello World`
-`Hello World`
 
-at the second Print, the process returns back to the start of the database and searches for the word using the jump tables.
+at the end of "Hello World", the process returns back to the start of the database and searches for the word using the jump tables.
 
+# "|"
+if you want to add a new line but don't want to end the command use the vertical bar"|"
+
+# "/"
+if you want to end the command but don't want to add a new line use "/"
 
 # "?"
 "?" the question mark symbol compares the next string, with the current source code string.
