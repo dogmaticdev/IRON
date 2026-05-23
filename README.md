@@ -14,9 +14,13 @@ IRON has jump tables built into the database, which solves this issue.
 For the uninformed, a jump table is essentially a list of destinations.
 Ex:
 option 1. destination
+
 option 2. destination
+
 option 3. destination
+
 option 4. destination
+
 Based on the input, a number 1-4 for will be generated, and then IRON will move to the destination for that specific option.
 With the use of a jump table, IRON will only do 1 comparison in order to evaluate which option is picked.
 While a naive, if else implementation would require a maximum of 4.
@@ -47,6 +51,7 @@ change the "lefts" and "rights" variables in "filter_text.asm" to a ascii hexcod
 # Creating Databases
 You make a script and IRON will remove all whitespace from it, compute the jump tables, and then IRON will use it as the database in the future.
 The command for this is:
+
 ./iron factor script.txt database.txt
 
 "script.txt" and "database.txt" can be anything you want.
@@ -82,20 +87,35 @@ The "#" jump table currently requires that it must have exactly 16 options, and 
 Ex:
 #
 &0
+
 &1
+
 &2
+
 &3
+
 &4
+
 &5
+
 &6
+
 &7
+
 &8
+
 &9
+
 &A
+
 &B
+
 &C
+
 &D
+
 &E
+
 &F
 
 # &
