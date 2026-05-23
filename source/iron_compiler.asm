@@ -29,15 +29,21 @@ align 16
 
     symbols:  db 0x3C, 0x3E, 0x28, 0x29, 0x5B, 0x5C, 0x7B, 0x7C, 0x2B, 0x2C, 0x2E, 0x3D, 0x26, 0x5E, 0x3F, 0x3A
     ;            <     >     (     )     [     ]     {     }     +     ,     .     =     &     ^     ?     :
-    symbols2: db 0x23, 0x40, 0x5C, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-    ;            #     @     \     $     ;     !     `     ~
+    symbols2: db 0x23, 0x40, 0x5C, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0x7C, 0x2F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    ;            #     @     \     $     ;     !     `     ~     |     /
     letters1: db 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70
     letters2: db 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     despace:  db 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
 
+
+    ;extra_table:
+        ;dq .hex_table
+        ;dq .alphabet_table
+
     factor_string: db "factor", 0x00
 
     build_string: db "build", 0x00
+
 
     usage:              db "Usage: ./iron <input> <database> <output>", 10
     usage_length:       equ $ - usage
@@ -134,6 +140,7 @@ _start:
     cmp rax, 5
     jne usage_error
 
+;------------here
     ; ── brk allocate ─────────────────────────────────────────────────────────
     mov rax, 12         ; sys_brk
     xor rdi, rdi        ; pass 0 to get current break
@@ -174,6 +181,8 @@ _start:
     add rdi, [input_size]
     add rdi, [input_size] ;allocating double the length to the output so i dont have to reallocate.
     syscall
+;-----here
+
 
 build:
     call filter_text
@@ -387,7 +396,7 @@ close_curly: ;Closed Curly Bracket "}", output the word saved from database.
     mov r14, [save4]
     jmp next_loop
 
-plus_sign: ;Plus "+", move source read pointer to the next word.
+plus_sign: ;Plus "+", move word in source pointer into xmm0 then move source read pointer to the next word.
     call isolate_string
     add r12, 2
     jmp next_loop
@@ -399,11 +408,20 @@ comma: ;Comma ",", add comma
     add r12, 2
     jmp next_loop
 
-period: ;Period ".", new line
+period: ;Period ".", new line and ends the instruction.
     dec r13
     mov [r13], byte 10 ;new line
     inc r13
+    jmp main_loop
+
+vertical_bar: ;Vertical Bar "|", does a new line but doesn't end the instruction.
+    dec r13
+    mov [r13], byte 10
+    inc r13
     add r12, 2
+    jmp next_loop
+
+slash: ;Slash "/", ends the instruction but does not do a new line.
     jmp main_loop
 
 equal_sign: ;Equal sign "=", output word in database read pointer
@@ -462,6 +480,12 @@ semicolon: ;Semicolon ";", reverse label endpoint.
 
 exclamation_mark: ;Exclamation Mark "!", error
     jmp invalid_source_error
+
+minus: ;Minus "-", move source read pointer to the next word.
+    call skip_string
+    jmp next_loop
+
+
 
 do_factor:
     ; ── brk allocate ─────────────────────────────────────────────────────────
@@ -821,3 +845,5 @@ section .data
         dq exclamation_mark
         dq back_tick
         dq tilde
+        dq vertical_bar
+        dq slash
