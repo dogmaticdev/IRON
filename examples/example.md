@@ -10,8 +10,6 @@ turn 128bit aligned xmm1 into xmm2
 And have IRON output this:
 ```
 movddup xmm1, xmm2
-movddup xmm1, xmm2
-movddup xmm1, xmm2
 movupd xmm1, xmm2
 movsldup xmm1, xmm2
 movdqu xmm1, xmm2
