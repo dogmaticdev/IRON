@@ -92,7 +92,7 @@ section .bss
     save4               resb 8
     save5               resb 8
 
-    stat_buffer         resb 144        ; sizeof(struct stat) on x86-64
+    stat_buffer         resb 144
 extern factor
 extern clear_whitespace
 extern delete_filler
@@ -121,16 +121,16 @@ _start:
     syscall
     test rax, rax
     js  open_input_error
-    mov [input_descriptor], rax      ; r14 is input descriptor
+    mov [input_descriptor], rax
 
     ; ── fstat to get file size ───────────────────────────────────────────────
     mov rax, 5 ;fstat
-    mov rdi, [input_descriptor] ; file descriptor
-    mov rsi, stat_buffer        ; pointer to stat struct
+    mov rdi, [input_descriptor]
+    mov rsi, stat_buffer
     syscall
     test rax, rax
     js  fstat_error
-    mov rax, [stat_buffer + 48]
+    mov rax, [stat_buffer + 48] ; file size
     mov [input_size], rax
 
     ; ── Check Usage ──────────────────────────────────────────────────────────
@@ -140,7 +140,6 @@ _start:
     cmp rax, 5
     jne usage_error
 
-;------------here
     ; ── brk allocate ─────────────────────────────────────────────────────────
     mov rax, 12         ; sys_brk
     xor rdi, rdi        ; pass 0 to get current break
@@ -150,16 +149,16 @@ _start:
     mov rax, 12
     mov rdi, [input_pointer]
     add rdi, [input_size]
-    add rdi, [input_size] ;if someone uses a lot of commas, it can cause a segfault, this is done to avoid that.
+    add rdi, [input_size] ;if someone uses a lot of commas, it might cause a segfault, this is done to avoid that.
     add rdi, 16 ;avoids segfault on small inputs. aka 7 bytes or less.
     syscall
 
     ; ── Read file into buffer ────────────────────────────────────────────────
     mov     rax, 0
-    mov     rdi, [input_descriptor]                ; input fd
-    mov     rsi, [input_pointer]                ; buffer pointer
-    add     rsi, [input_size]
-    mov     rdx, [input_size]                ; read exactly file-size bytes
+    mov     rdi, [input_descriptor]
+    mov     rsi, [input_pointer]
+    add     rsi, [input_size] ;we read from the second half of the buffer and input into the first half.
+    mov     rdx, [input_size]
     syscall
     test     rax, rax
     js      read_error
@@ -181,8 +180,6 @@ _start:
     add rdi, [input_size]
     add rdi, [input_size] ;allocating double the length to the output so i dont have to reallocate.
     syscall
-;-----here
-
 
 build:
     call filter_text
@@ -206,8 +203,8 @@ build:
 
     ; ── fstat to get file size ───────────────────────────────────────────────
     mov rax, 5 ;fstat
-    mov rdi, [database_descriptor] ; file descriptor
-    mov rsi, stat_buffer        ; pointer to stat struct
+    mov rdi, [database_descriptor]
+    mov rsi, stat_buffer
     syscall
     test rax, rax
     js  fstat_error
@@ -501,9 +498,9 @@ do_factor:
 
     ; ── Read file into buffer ────────────────────────────────────────────────
     mov     rax, 0
-    mov     rdi, [input_descriptor]                ; input fd
-    mov     rsi, [input_pointer]                ; buffer pointer
-    mov     rdx, [input_size]                ; read exactly file-size bytes
+    mov     rdi, [input_descriptor]
+    mov     rsi, [input_pointer]
+    mov     rdx, [input_size]
     syscall
     test     rax, rax
     js      read_error
@@ -555,9 +552,9 @@ factor_end:
 
     ; ── Write buffer to output file ──────────────────────────────────────────
     mov     rax, 1 ;write
-    mov     rdi, [output_descriptor] ; file descriptor
-    mov     rsi, [output_pointer]     ; buffer pointer
-    mov     rdx, [output_size]       ; bytes to write
+    mov     rdi, [output_descriptor]
+    mov     rsi, [output_pointer]
+    mov     rdx, [output_size]
     syscall
     cmp     rax, 0
     jl      write_error
@@ -646,10 +643,8 @@ exit_error:
     mov     rdi, 1  ;error
     syscall
 
-
+    ; ── Functions ────────────────────────────────────────────────────────────
 get_string_length:
-    ; ── Setup Registers ──────────────────────────────────────────────────────
-    ;clobbers xmm7, rax, rbx, rcx, rdx | string_length
     xor rbx, rbx
     jmp .start
 
