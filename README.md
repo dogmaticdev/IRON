@@ -33,6 +33,8 @@ You can of course, make a program that reads the IR and determines if it is usin
 Or have the IR be in another programming language and have that programming language handle implicit types.
 But I don't intend on adding in such functionality directly into IRON.
 
+Although, IRON gives you a lot of control, so it may be possible to force it to consider implicit types.
+
 This can be removed later on, but IRON removes "filler text" from the source code.
 The filler words are, "as" "by" "is" "of" "or" "to" "so" "and" "for" "has" "the" "from" "into" "that" "with"
 if you would like to use these words, simply remove this text from "iron_compiler.asm"
@@ -76,7 +78,7 @@ IRON intentionally uses one symbol per instruction for maximum performance.
 
 Currently the existing jump tables are fairly basic, and more interoptabiltiy may be added in the future.
 
-# #
+# "#"
 "#" Used to indicate a jump table with 16 options, it considers the length of a source code word.
 i.e.
 If i were to write
@@ -118,7 +120,7 @@ Ex:
 
 &F
 
-# &
+# "&"
 This brings me to the next symbol, "&" is used to indicate a label.
 You can only have a maximum of 16 letters per Label.
 
@@ -135,7 +137,7 @@ If you want to have multiple labels with the name, that is fine, IRON only cares
 Jumps are precomputed, so you wont have to worry about searching for a string when building your source code.
 
 When using "&" and "$" the "$" must always be below the "&" and never above it.
-# ;
+# ";"
 If you want to jump to a "$" that is before a "&" instead of ahead, use ";" and ":" instead.
 Ex:
 ```
@@ -146,7 +148,10 @@ IRON will jump from ":Print" to ";Print"
 
 The maximum jump size currently has a 32 bit unsigned integer limit or 4,294,967,295. Which is effectively 4gb. 
 
-# @ 
+# "!"
+The exclamation mark "!" is used to indicate undefined behavior, if IRON reads this symbol, it will stop and return an error.
+
+# "@" 
 "@" is another jump table, but this one must have exactly 26 options. 
 It takes the first letter of the word, and jumps to the corresponding table representing that letter.
 Each option must be exactly 4 letters long.
@@ -154,14 +159,14 @@ Ex:
 `&a1-`
 The "-" is used to fulfill the 4 letter requirement and doesnt serve any other purpose.
 
-# =
+# "="
 "=" The equal sign is used to designate the next string to be outputted into the IR.
 Ex:
 
 `= Hello = World` Would print out: `Hello World`
 IRON adds a space between every individual string that is outputted into the IR.
 
-# \
+# "\"
 to prevent this use a "\" backslash.
 Ex:
 `= Hello \ = World` Would print out: `HelloWorld`
@@ -175,12 +180,12 @@ IRON doesn't stop you from printing any of the symbols.
 Ex:
 `= = = &Print` Would print out: `= &Print`
 
-# ,
+# ","
 this just adds a comma
 Ex:
 `= Hello , = World` Would print out: `Hello, World`
 
-# .
+# "."
 This is used to add a new line or /n or 0x10 to the end of an command, and to begin the next command.
 EX:
 `Print "Hello World" Print "Hello World"`
@@ -191,7 +196,7 @@ Outputs:
 at the second Print, the process returns back to the start of the database and searches for the word using the jump tables.
 
 
-# ?
+# "?"
 "?" the question mark symbol compares the next string, with the current source code string.
 The question mark will only compare the first 16 bytes of a string.
 However, is no limit to the size of a string that can be outputted with "=".
@@ -222,7 +227,7 @@ After:
 
 If they are not a match, then IRON does not do that.
 
-# < and (
+# "<" and "("
 These two symbols both serve the same purpose, they each copy the location of a word in memory into distinct variables.
 This does not affect the main Variable or the Memory word.
 
@@ -230,7 +235,7 @@ This is used to print this word into the IR output at a later time.
 
 To print either Variable into IR, use the closing ">" or ")" respectively.
 
-# ^
+# "^"
 "^" prints the word that is in memory then looks at the next word in memory.
 
 This is database code that I have written as an example:
@@ -243,9 +248,9 @@ $t4-
         $8bit = mov = byte > , ^ .
 ```
 If the conditions are met it converts 
-`turn 8bit {param1} {param2}` 
+`turn 8bit param1 param2` 
 into:
-`mov byte {param1}, {param2}`
+`mov byte param1, param2`
 
 This may seem confusing at first, but i will outline what is happening at each step.
 At: `$t4-`
@@ -254,35 +259,102 @@ At: `$t4-`
 
 At: `? turn &turn &then`
 `Variable: 8bit`
-`Memory: {param1}`
+`Memory: param1`
 
 At: `$turn <`
 `Variable: 8bit`
-`2nd Variable: {param1}`
-`Memory: {param2}`
+`2nd Variable: param1`
+`Memory: param2`
 
 At: `? 8bit &8bit &next`
-`Variable: {param1}`
-`2nd Variable: {param1}`
-`Memory:{param2}`
+`Variable: param1`
+`2nd Variable: param1`
+`Memory:param2`
 
 Then it prints `mov byte` and then the first and second paramaters.
 As you can see the 2nd variable holds the first param, and the memory is looking at the second one.
 
-# { 
+# "{" 
 `[` stores a word that is in the database to another variable.
 Ex:
 `[ Hello`
 `4th Variable: Hello`
-The closing `}` prints that variable to the IR.
+The closing `}` prints that variable to the output.
 
-# [
+# "["
 `[` is used for storing a position in the database.
-whenever the closing `]` is read, IRON jumps back to wherever the `[` was found.
+whenever the closing `]` is read, the database pointer jumps back to wherever the `[` was found.
 This is used to create loops.
 And there is nothing stopping you from making an infinite loop and having IRON crash your computer, so i would suggest not doing that.
 
-# +
+# "+"
 "+" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
+I won't lie, the "+" is where this language becomes cursed and confusing, In the "Idiomatic IRON" section, I explain how to mitigate this complexity, but it is still a pain regardless.
+Ex: "turn 8bit param1"
+Before: "+"
+`Variable: turn`
+`Memory: 8bit`
+After:
+`Variable: 8bit`
+`Memory: param1`
 
-Thats everything that the IRON compiler can do at the moment, I hope you will find this to be useful or insightful.
+# "`" and "~"
+Like the open and close pairs, the backtick represents open and "~" represents closed. There were no more sane ascii keys so I just picked these.
+The back tick saves the source read pointer into a variable, and the tilde "~" moves the source memory pointer to the saved one.
+So if you wanted to move back to a word after doing "+" you can do it with this.
+Ex: "turn 8bit param1"
+`Variable: turn`
+`Memory: 8bit`
+After: back tick
+`Variable: turn`
+`Memory: 8bit`
+`Variable5: 8bit`
+After: "+"
+`Variable: 8bit`
+`Memory: param1`
+`Variable5: 8bit`
+After: "~"
+`Variable: 8bit`
+`Memory: 8bit`
+`Variable5: 8bit`
+
+As you can probably tell this instruction can make the Memory and Main Variable Synchronized or even make the Main Variable be ahead of the memory pointer.
+Which is not very good, because this will effect what the next Variable will be.
+
+# "-"
+This is similar to the "+" instruction except it only moves the read pointer forward and doesnt change the Main Variable.
+This should only be used in conjunction with "~" if absolutely necessary. I can think of no reason as to why this should be used in any other situation.
+
+# Idiomatic IRON
+Quite frankly the phrase "Idiomatic IRON" is somewhat ironic since I have no intention of making the syntax readable.
+But that is mainly due to the fact that most instructions cannot be represented intuitively by a single word, and because ascii symbols only take up 1 byte of space.
+
+IRON doesnt care about whitespace and will delete any and all whitespace you have in your precompiled database.
+But If you do not use whitespace in the very specific manner im about to show you, it becomes impossible to write anything in IRON.
+
+That is, for every label1 in a: 
+`? string &label1 &label2`
+the end point must always be a tab or 4 spaces ahead of the "?"
+i.e.
+```
+? string &label1 &label2
+    $label1
+```
+And for every label2 the end point must always be on the same level as the "?"
+i.e.
+```
+? string &label1 &label2
+    $label1
+$label2
+```
+
+every "?" must be on a new line, and can't be on the same line as something before it.
+i.e. this is bad:
+`$label ? string &label1 &label2`
+but this is good:
+```
+$label
+? string &label1 &label2
+```
+
+Thats everything that the IRON compiler can do at the moment, I hope you will find it to be useful or insightful.
