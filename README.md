@@ -132,6 +132,8 @@ IRON will jump from "&Print" to "$Print"
 
 If you want to have multiple labels with the name, that is fine, IRON only cares about the closest label of the same name.
 
+Jumps are precomputed, so you wont have to worry about searching for a string when building your source code.
+
 When using "&" and "$" the "$" must always be below the "&" and never above it.
 # ;
 If you want to jump to a "$" that is before a "&" instead of ahead, use ";" and ":" instead.
