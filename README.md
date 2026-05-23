@@ -261,6 +261,6 @@ This is used to create loops.
 And there is nothing stopping you from making an infinite loop and having IRON crash your computer, so i would suggest not doing that.
 
 # +
-+ loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
+"+" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
 
 Thats everything that the IRON compiler can do at the moment, I hope you will find this to be useful or insightful.
