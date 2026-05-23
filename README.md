@@ -56,11 +56,6 @@ To create the IR for source code, the command is:
 
 "source.txt", "database.txt" and "output.txt" can be anything you want.
 
-# Syntax
-IRON intentionally uses one symbol per instruction for maximum performance.
-
-Currently the existing jump tables are fairly basic, and more interoptabiltiy may be added in the future.
-
 # To Build IRON
 You first need to install nasm, then use these commands in the folder you have downloaded the IRON source code into.
 
@@ -70,6 +65,11 @@ nasm -f elf64 filter_text.asm -o filter_text.o
 nasm -f elf64 setup.asm -o setup.o
 nasm -f elf64 clear_whitespace.asm -o clear_whitespace.o
 ld iron_compiler.o delete_filler.o filter_text.o setup.o clear_whitespace.o -o iron
+
+# Syntax
+IRON intentionally uses one symbol per instruction for maximum performance.
+
+Currently the existing jump tables are fairly basic, and more interoptabiltiy may be added in the future.
 
 # #
 "#" Used to indicate a jump table with 16 options, it considers the length of a source code word.
