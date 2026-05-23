@@ -29,8 +29,8 @@ align 16
 
     symbols:  db 0x3C, 0x3E, 0x28, 0x29, 0x5B, 0x5C, 0x7B, 0x7C, 0x2B, 0x2C, 0x2E, 0x3D, 0x26, 0x5E, 0x3F, 0x3A
     ;            <     >     (     )     [     ]     {     }     +     ,     .     =     &     ^     ?     :
-    symbols2: db 0x23, 0x40, 0x5C, 0x24, 0x3B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-    ;            #     @     \     $     ;
+    symbols2: db 0x23, 0x40, 0x5C, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    ;            #     @     \     $     ;     !     `     ~
     letters1: db 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70
     letters2: db 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     despace:  db 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
@@ -90,6 +90,7 @@ section .bss
     save2               resb 8
     save3               resb 8
     save4               resb 8
+    save5               resb 8
 
     stat_buffer         resb 144        ; sizeof(struct stat) on x86-64
 extern factor
@@ -139,6 +140,7 @@ _start:
     cmp rax, 5
     jne usage_error
 
+;------------here
     ; ── brk allocate ─────────────────────────────────────────────────────────
     mov rax, 12         ; sys_brk
     xor rdi, rdi        ; pass 0 to get current break
@@ -179,6 +181,8 @@ _start:
     add rdi, [input_size]
     add rdi, [input_size] ;allocating double the length to the output so i dont have to reallocate.
     syscall
+;-----here
+
 
 build:
     call filter_text
@@ -256,13 +260,13 @@ build:
     xor rcx, rcx
 
 main_loop:
+    cmp r14, r15
+    jae end
     call isolate_string
     mov r12, [database_pointer]
     ;movdqu xmm1, [r14]
     ;call isolate_string
 next_loop:
-    cmp r14, r15
-    jae end
     mov al, [r12]
     pinsrb xmm12, eax, 0
     pshufb xmm12, xmm10
@@ -283,9 +287,8 @@ second_table:
     jc invalid_database_error
     jmp [r9 + rcx*8]
 
-hashtag:
-    mov rdx, r14
-    call get_string_length
+hashtag: ;Hashtag "#", Numerical string length jump table.
+    call get_length
     cmp rbx, 16
     ja invalid_source_error
     cmp rbx, 0
@@ -315,7 +318,7 @@ next_string:
     jae end
     jmp next_string
 
-at_sign:
+at_sign: ;At sign "@", Alphabetical jump table.
     pextrb eax, xmm0, 0
     sub al, 0x61
     cmp al, 25
@@ -328,18 +331,18 @@ at_sign:
     add r12, rax
     jmp next_loop
 
-colon:
+colon: ;Colon ":" inverse label start point.
     call database_skip_string
     mov eax, [r12]
     sub r12, rax
     jmp next_loop
 
-open_arrow:
+open_arrow: ;Open Arrow "<", save the word from the source read pointer.
     mov [save1], r14
     add r12, 2
     jmp next_loop
 
-close_arrow:
+close_arrow: ;Closed Arrow ">", output the word saved from the source read pointer
     mov rax, [save1]
     mov [save1], r14
     mov r14, rax
@@ -347,12 +350,22 @@ close_arrow:
     mov r14, [save1]
     jmp next_loop
 
-open_parenthesis:
+back_tick: ;Back Tick "`" saves the current position of the read pointer.
+    mov [save5], r14
+    add r12, 2
+    jmp next_loop
+
+tilde: ;Tilde "~" moves the read pointer back to the saved position.
+    mov r14, [save5]
+    add r12, 2
+    jmp next_loop
+
+open_parenthesis: ;Open Parenthesis "(", save the word from the source read pointer.
     mov [save2], r14
     add r12, 2
     jmp next_loop
 
-close_parenthesis:
+close_parenthesis: ;Closed Parenthesis ")", output the word saved from the source read pointer.
     mov rax, [save2]
     mov [save2], r14
     mov r14, rax
@@ -360,22 +373,22 @@ close_parenthesis:
     mov r14, [save2]
     jmp next_loop
 
-open_bracket:
+open_bracket: ;Open Square Bracket "[", save the position of the database read pointer.
     add r12, 2
     mov [save3], r12
     jmp next_loop
 
-close_bracket:
+close_bracket: ;Closed Square Bracket "]", jump to the saved database read pointer memory position.
     mov r12, [save3]
     jmp next_loop
 
-open_curly:
+open_curly: ;Open Curly Bracket "{", save the word in the database read pointer.
     add r12, 2
     mov [save4], r12
     call database_skip_string
     jmp next_loop
 
-close_curly:
+close_curly: ;Closed Curly Bracket "}", output the word saved from database.
     mov rax, [save4]
     mov [save4], r14
     mov r14, rax
@@ -383,31 +396,31 @@ close_curly:
     mov r14, [save4]
     jmp next_loop
 
-plus_sign:
+plus_sign: ;Plus "+", move source read pointer to the next word.
     call isolate_string
     add r12, 2
     jmp next_loop
 
-comma:
+comma: ;Comma ",", add comma
     dec r13
     mov [r13], word 0x002C ; comma
     add r13, 2
     add r12, 2
     jmp next_loop
 
-period:
+period: ;Period ".", new line
     dec r13
     mov [r13], byte 10 ;new line
-    add r13, 2
+    inc r13
     add r12, 2
     jmp main_loop
 
-equal_sign:
+equal_sign: ;Equal sign "=", output word in database read pointer
     add r12, 2
     call database_copy_string
     jmp next_loop
 
-ampersand:
+ampersand: ;Ampersand, label start point.
     call database_skip_string
     mov eax, [r12]
     add r12, rax
@@ -418,11 +431,11 @@ skip_ampersand:
     add r12, 5
     jmp next_loop
 
-exponent:
+exponent: ;Exponent "^", output word in source read pointer
     call copy_string
     jmp next_loop
 
-question_mark:
+question_mark: ;Question mark "?", if else statement
     add r12, 2
     call isolate_database_string
     cmp rdi, rsi
@@ -444,17 +457,20 @@ question_mark:
     call database_skip_string
     jmp next_loop
 
-backslash:
-    dec r14
+backslash: ;Backslash "\", decrement output write pointer
+    dec r13
     jmp next_loop
 
-dollar_sign:
+dollar_sign: ;Dollar sign "$", label endpoint.
     call database_skip_string
     jmp next_loop
 
-semicolon:
+semicolon: ;Semicolon ";", reverse label endpoint.
     call database_skip_string
     jmp next_loop
+
+exclamation_mark: ;Exclamation Mark "!", error
+    jmp invalid_source_error
 
 do_factor:
     ; ── brk allocate ─────────────────────────────────────────────────────────
@@ -635,6 +651,14 @@ get_string_length:
     add rbx, rcx
     ret
 
+get_length:
+    xor rbx, rbx
+    pxor xmm12, xmm12
+    pcmpeqb xmm12, xmm0
+    pmovmskb eax, xmm12
+    tzcnt bx, ax
+    ret
+
 compare:
     pcmpeqb xmm1, xmm0
     pmovmskb eax, xmm1
@@ -803,3 +827,6 @@ section .data
         dq backslash
         dq dollar_sign
         dq semicolon
+        dq exclamation_mark
+        dq back_tick
+        dq tilde
