@@ -1,14 +1,14 @@
 # Info
 Using the template txt and this code directly below it i am able to input this source code:
-`
+```
 turn 128bit double float xmm1 into replicate of xmm2
 turn 128bit double float xmm1 into xmm2
 turn 128bit float xmm1 into even replicate xmm2
 turn 128bit xmm1 into xmm2
 turn 128bit aligned xmm1 into xmm2
-`
+```
 And have IRON output this:
-`
+```
 movddup xmm1, xmm2
 movddup xmm1, xmm2
 movddup xmm1, xmm2
@@ -16,7 +16,7 @@ movupd xmm1, xmm2
 movsldup xmm1, xmm2
 movdqu xmm1, xmm2
 movdqa xmm1, xmm2
-`
+```
 This is the code:
 ```
 $t4-
