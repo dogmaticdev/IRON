@@ -72,6 +72,10 @@ nasm -f elf64 setup.asm -o setup.o
 nasm -f elf64 clear_whitespace.asm -o clear_whitespace.o
 ld iron_compiler.o delete_filler.o filter_text.o setup.o clear_whitespace.o -o iron
 ```
+
+# Examples
+If you would like to see a working example of IRON in practice check out the example.MD in the examples folder.
+
 # Syntax
 IRON intentionally uses one symbol per instruction for maximum performance.
 
