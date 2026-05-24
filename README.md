@@ -316,10 +316,10 @@ Then it prints `mov byte` and then the first and second paramaters.
 As you can see the 2nd variable holds the first param, and the memory is looking at the second one.
 
 # "{" 
-`[` stores a word that is in the database to another variable.
+`{` stores a word that is in the database to another variable.
 Ex:
 ```
-[ Hello
+{ Hello
 4th Variable: Hello
 ```
 The closing `}` prints that variable to the output.
