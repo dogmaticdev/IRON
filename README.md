@@ -82,43 +82,32 @@ Currently the existing jump tables are fairly basic, and more interoptabiltiy ma
 "#" Used to indicate a jump table with 16 options, it considers the length of a source code word.
 i.e.
 If i were to write
-```print "hello world" ```
+```
+print "hello world"
+```
 and feed this into IRON, it would read "print" then it would determine the length is 5, and jump to the 5th option.
 
 The "#" jump table currently requires that it must have exactly 16 options, and that each option is exactly 2 characters long.
 Ex:
+```
 #
 &0
-
 &1
-
 &2
-
 &3
-
 &4
-
 &5
-
 &6
-
 &7
-
 &8
-
 &9
-
 &A
-
 &B
-
 &C
-
 &D
-
 &E
-
 &F
+```
 
 # "&"
 This brings me to the next symbol, "&" is used to indicate a label.
@@ -163,35 +152,67 @@ The "-" is used to fulfill the 4 letter requirement and doesnt serve any other p
 "=" The equal sign is used to designate the next string to be outputted into the IR.
 Ex:
 
-`= Hello = World` Would print out: `Hello World`
+```
+= Hello = World
+``` 
+Would print out: 
+```
+Hello World
+```
 IRON adds a space between every individual string that is outputted into the IR.
 
 # "\"
 to prevent this use a "\" backslash.
 Ex:
-`= Hello \ = World` Would print out: `HelloWorld`
+```
+= Hello \ = World
+``` 
+Would print out: 
+```
+HelloWorld
+```
 
 Backslash doesn't just get rid of a space but the previous character that is outputted.
 Ex:
-`= Hello \ \` Would print out: `Hell`
+```
+= Hello \ \
+``` 
+Would print out: 
+```
+Hell
+```
 
 
 IRON doesn't stop you from printing any of the symbols.
 Ex:
-`= = = &Print` Would print out: `= &Print`
+```
+= = = &Print
+``` 
+Would print out: 
+```
+= &Print
+```
 
 # ","
 this just adds a comma
 Ex:
-`= Hello , = World` Would print out: `Hello, World`
-
+```
+= Hello , = World
+```
+Would print out: 
+```
+Hello, World
+```
 # "."
 This is used to add a new line a.k.a. /n or 0x10 to the end of an command, and to begin the next command.
 EX:
-`= "Hello World" . = "Hello World"`
+```
+= "Hello World" . = "Hello World"
+```
 Outputs:
-`Hello World`
-
+```
+Hello World`
+```
 at the end of "Hello World", the process returns back to the start of the database and searches for the word using the jump tables.
 
 # "|"
@@ -209,7 +230,9 @@ If the strings match, the first option is selected, otherwise the second option 
 The "?" Must have exactly two options.
 
 Ex:
-`? Print &Print &Something_Else`
+```
+? Print &Print &Something_Else
+```
 In this case, "&Print# is the first option and "&Something_Else" is the second option.
 
 Talking about what exactly the question mark instruction does at the hardware level is important in order to use the following instructions correctly.
@@ -221,14 +244,19 @@ When IRON sees "?" it compares the word in the database to the word stored in a 
 If they are a match, "?" copies the word that is being looked at in memory into the variable, then it looks at the next word in memory.
 Using `Print "Hello World"` as an example:
 Before:
-`Variable: Print`
-`Memory: "Hello World"`
+```
+Variable: Print
+Memory: "Hello World"
+```
 Then:
-`? Print &Print &Something_Else`
+```
+? Print &Print &Something_Else
+```
 After:
-`Variable: "Hello World"`
-`Memory:`
-
+```
+Variable: "Hello World"
+Memory:
+```
 If they are not a match, then IRON does not do that.
 
 # "<" and "("
@@ -252,28 +280,38 @@ $t4-
         $8bit = mov = byte > , ^ .
 ```
 If the conditions are met it converts 
-`turn 8bit param1 param2` 
+```
+turn 8bit param1 param2
+``` 
 into:
-`mov byte param1, param2`
+```
+mov byte param1, param2
+```
 
 This may seem confusing at first, but i will outline what is happening at each step.
 At: `$t4-`
-`Variable: turn`
-`Memory: 8bit`
-
+```
+Variable: turn
+Memory: 8bit
+```
 At: `? turn &turn &then`
-`Variable: 8bit`
-`Memory: param1`
-
-At: `$turn <`
-`Variable: 8bit`
-`2nd Variable: param1`
-`Memory: param2`
+```
+Variable: 8bit
+Memory: param1
+```
+At: $turn <
+```
+Variable: 8bit
+2nd Variable: param1
+Memory: param2
+```
 
 At: `? 8bit &8bit &next`
-`Variable: param1`
-`2nd Variable: param1`
-`Memory:param2`
+```
+Variable: param1
+2nd Variable: param1
+Memory:param2
+```
 
 Then it prints `mov byte` and then the first and second paramaters.
 As you can see the 2nd variable holds the first param, and the memory is looking at the second one.
@@ -281,8 +319,10 @@ As you can see the 2nd variable holds the first param, and the memory is looking
 # "{" 
 `[` stores a word that is in the database to another variable.
 Ex:
-`[ Hello`
-`4th Variable: Hello`
+```
+[ Hello
+4th Variable: Hello
+```
 The closing `}` prints that variable to the output.
 
 # "["
@@ -296,31 +336,43 @@ And there is nothing stopping you from making an infinite loop and having IRON c
 I won't lie, the "+" is where this language becomes cursed and confusing, In the "Idiomatic IRON" section, I explain how to mitigate this complexity, but it is still a pain regardless.
 Ex: "turn 8bit param1"
 Before: "+"
-`Variable: turn`
-`Memory: 8bit`
+```
+Variable: turn
+Memory: 8bit
+```
 After:
-`Variable: 8bit`
-`Memory: param1`
+```
+Variable: 8bit
+Memory: param1
+```
 
 # "`" and "~"
 Like the open and close pairs, the backtick represents open and the tilde represents closed. There were no more sane ascii keys so I just picked these.
 The back tick saves the source read pointer into a variable, and the tilde moves the source memory pointer to the saved one.
 So if you wanted to move back to a word after doing "+" you can do it with this.
 Ex: "turn 8bit param1"
-`Variable: turn`
-`Memory: 8bit`
+```
+Variable: turn
+Memory: 8bit
+```
 After: back tick
-`Variable: turn`
-`Memory: 8bit`
-`Variable5: 8bit`
+```
+Variable: turn
+Memory: 8bit
+Variable5: 8bit
+```
 After: "+"
-`Variable: 8bit`
-`Memory: param1`
-`Variable5: 8bit`
+```
+Variable: 8bit
+Memory: param1
+Variable5: 8bit
+```
 After: "~"
-`Variable: 8bit`
-`Memory: 8bit`
-`Variable5: 8bit`
+```
+Variable: 8bit
+Memory: 8bit
+Variable5: 8bit
+```
 
 As you can probably tell this instruction can make the Memory and Main Variable Synchronized or even make the Main Variable be ahead of the memory pointer.
 Which is not very good, because this will effect what the next Variable will be.
