@@ -53,26 +53,27 @@ change the "lefts" and "rights" variables in "filter_text.asm" to a ascii hexcod
 # Creating Databases
 You make a script and IRON will remove all whitespace from it, compute the jump tables, and then IRON will use it as the database in the future.
 The command for this is:
-
+```
 ./iron factor script.txt database.txt
-
+```
 "script.txt" and "database.txt" can be anything you want.
 
 To create the IR for source code, the command is:
+```
 ./iron build source.txt database.txt output.txt
-
+```
 "source.txt", "database.txt" and "output.txt" can be anything you want.
 
 # To Build IRON
 You first need to install nasm, then use these commands in the folder you have downloaded the IRON source code into.
-
+```
 nasm -f elf64 iron_compiler.asm -o iron_compiler.o
 nasm -f elf64 delete_filler.asm -o delete_filler.o
 nasm -f elf64 filter_text.asm -o filter_text.o
 nasm -f elf64 setup.asm -o setup.o
 nasm -f elf64 clear_whitespace.asm -o clear_whitespace.o
 ld iron_compiler.o delete_filler.o filter_text.o setup.o clear_whitespace.o -o iron
-
+```
 # Syntax
 IRON intentionally uses one symbol per instruction for maximum performance.
 
