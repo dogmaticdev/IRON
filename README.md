@@ -303,8 +303,8 @@ After:
 `Memory: param1`
 
 # "`" and "~"
-Like the open and close pairs, the backtick represents open and "~" represents closed. There were no more sane ascii keys so I just picked these.
-The back tick saves the source read pointer into a variable, and the tilde "~" moves the source memory pointer to the saved one.
+Like the open and close pairs, the backtick represents open and the tilde represents closed. There were no more sane ascii keys so I just picked these.
+The back tick saves the source read pointer into a variable, and the tilde moves the source memory pointer to the saved one.
 So if you wanted to move back to a word after doing "+" you can do it with this.
 Ex: "turn 8bit param1"
 `Variable: turn`
@@ -353,8 +353,11 @@ $label2
 ```
 
 every "?" must be on a new line, and can't be on the same line as something before it.
+
 i.e. this is bad:
-`$label ? string &label1 &label2`
+```
+$label ? string &label1 &label2
+```
 but this is good:
 ```
 $label
