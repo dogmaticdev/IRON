@@ -13,16 +13,14 @@ This is really slow, as it requires comparing an input with every single key unt
 IRON has jump tables built into the database, which solves this issue.
 For the uninformed, a jump table is essentially a list of destinations.
 Ex:
+```
 option 1. destination
-
 option 2. destination
-
 option 3. destination
-
 option 4. destination
-
+```
 Based on the input, a number 1-4 for will be generated, and then IRON will move to the destination for that specific option.
-With the use of a jump table, IRON will only do 1 comparison in order to evaluate which option is picked.
+With the use of a jump table, In this example, IRON will only do 1 comparison in order to evaluate which option is picked.
 While a naive, if else implementation would require a maximum of 4.
 
 This naturally has a compounding effect when the destinations lead to more jump tables.
