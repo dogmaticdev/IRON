@@ -160,8 +160,8 @@ Hello World
 ```
 IRON adds a space between every individual string that is outputted into the IR.
 
-# "\"
-to prevent this use a "\" backslash.
+# \
+to prevent this use a \ backslash.
 Ex:
 ```
 = Hello \ = World
