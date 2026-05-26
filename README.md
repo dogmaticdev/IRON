@@ -116,6 +116,7 @@ It can have any number of options between 1-16.
 it compares the first letter in the word to the provided string of letters and jumps accordingly.
 
 Ex:
+```
 _ abcdef789213
 &a
 &b
@@ -130,6 +131,7 @@ _ abcdef789213
 &1
 &3
 &error
+```
 it can take any number or symbol, if the letter is not within the provided string it will jump to the very end of the list, i.e. where the "&error" label is currenty located.
 
 # "&"
