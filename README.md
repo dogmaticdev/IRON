@@ -112,6 +112,27 @@ Ex:
 &F
 ```
 
+# "_"
+The "_" jump table requires that each label below it is exactly 2 characters long, it can have up to a maximum of 16 options. 
+It can have any number of options between 1-16.
+it compares the first letter in the word to the provided string of letters and jumps accordingly.
+Ex:
+_ abcdef789213
+&a
+&b
+&c
+&d
+&e
+&f
+&7
+&8
+&9
+&2
+&1
+&3
+&error
+it can take any number or symbol, if the letter is not within the provided string it will jump to the very end of the list, i.e. where the "&error" label is currenty located.
+
 # "&"
 This brings me to the next symbol, "&" is used to indicate a label.
 You can only have a maximum of 16 letters per Label.
@@ -164,11 +185,11 @@ Hello World
 ```
 IRON adds a space between every individual string that is outputted into the IR.
 
-# \
-to prevent this use a \ backslash.
+# -
+to prevent this use a "-" minus.
 Ex:
 ```
-= Hello \ = World
+= Hello - = World
 ``` 
 Would print out: 
 ```
@@ -178,13 +199,14 @@ HelloWorld
 Backslash doesn't just get rid of a space but the previous character that is outputted.
 Ex:
 ```
-= Hello \ \
+= Hello - -
 ``` 
 Would print out: 
 ```
 Hell
 ```
-
+# "+"
+a plus does the opposite of minus and adds a space.
 
 IRON doesn't stop you from printing any of the symbols.
 Ex:
@@ -236,51 +258,34 @@ Ex:
 ```
 ? Print &Print &Something_Else
 ```
-In this case, "&Print# is the first option and "&Something_Else" is the second option.
-
-Talking about what exactly the question mark instruction does at the hardware level is important in order to use the following instructions correctly.
-
-Firstly, the first word of a line of text is stored in a variable more or less.
-The next word is being looked at in memory.
-
-When IRON sees "?" it compares the word in the database to the word stored in a variable.
-If they are a match, "?" copies the word that is being looked at in memory into the variable, then it looks at the next word in memory.
-Using `Print "Hello World"` as an example:
-Before:
-```
-Variable: Print
-Memory: "Hello World"
-```
-Then:
-```
-? Print &Print &Something_Else
-```
-After:
-```
-Variable: "Hello World"
-Memory:
-```
-If they are not a match, then IRON does not do that.
-
-# "<" and "("
-These two symbols both serve the same purpose, they each copy the location of a word in memory into distinct variables.
-This does not affect the main Variable or the Memory word.
-
-This is used to print this word into the IR output at a later time.
-
-To print either Variable into IR, use the closing ">" or ")" respectively.
+In this case, "&Print" is the first option and "&Something_Else" is the second option.
 
 # "^"
 "^" prints the word that is in memory then looks at the next word in memory.
+
+# "*"
+"+" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
+I won't lie, the "+" is where this language becomes cursed and confusing, In the "Idiomatic IRON" section, I explain how to mitigate this complexity, but it is still a pain regardless.
+Ex: "turn 8bit param1"
+Before: "+"
+```
+Variable: turn
+Memory: 8bit
+```
+After:
+```
+Variable: 8bit
+Memory: param1
+```
 
 This is database code that I have written as an example:
 ```
 $t4-
 ? turn &turn &then
 
-    $turn <
+    $turn *
     ? 8bit &8bit &next
-        $8bit = mov = byte > , ^ .
+        $8bit = mov = byte ^ , ^ .
 ```
 If the conditions are met it converts 
 ```
@@ -298,11 +303,9 @@ Variable: turn
 Memory: 8bit
 ```
 At: `? turn &turn &then`
-```
-Variable: 8bit
-Memory: param1
-```
-At: $turn <
+it resolves to true and jumps to $turn
+
+At: $turn *
 ```
 Variable: 8bit
 2nd Variable: param1
@@ -310,14 +313,17 @@ Memory: param2
 ```
 
 At: `? 8bit &8bit &next`
-```
-Variable: param1
-2nd Variable: param1
-Memory:param2
-```
+it resolves to true and jumps to $8bit
 
 Then it prints `mov byte` and then the first and second paramaters.
-As you can see the 2nd variable holds the first param, and the memory is looking at the second one.
+
+# "<" and "("
+These two symbols both serve the same purpose, they each copy the location of a word in memory into distinct variables.
+This does not affect the main Variable or the Memory word.
+
+This is used to print this word into the IR output at a later time.
+
+To print either Variable into the output, use the closing ">" or ")" respectively.
 
 # "{" 
 `{` stores a word that is in the database to another variable.
@@ -334,25 +340,10 @@ whenever the closing `]` is read, the database pointer jumps back to wherever th
 This is used to create loops.
 And there is nothing stopping you from making an infinite loop and having IRON crash your computer, so i would suggest not doing that.
 
-# "+"
-"+" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
-I won't lie, the "+" is where this language becomes cursed and confusing, In the "Idiomatic IRON" section, I explain how to mitigate this complexity, but it is still a pain regardless.
-Ex: "turn 8bit param1"
-Before: "+"
-```
-Variable: turn
-Memory: 8bit
-```
-After:
-```
-Variable: 8bit
-Memory: param1
-```
-
 # "`" and "~"
 Like the open and close pairs, the backtick represents open and the tilde represents closed. There were no more sane ascii keys so I just picked these.
 The back tick saves the source read pointer into a variable, and the tilde moves the source memory pointer to the saved one.
-So if you wanted to move back to a word after doing "+" you can do it with this.
+So if you wanted to move back to a word after doing "*" you can do it with this.
 Ex: "turn 8bit param1"
 ```
 Variable: turn
@@ -376,13 +367,6 @@ Variable: 8bit
 Memory: 8bit
 Variable5: 8bit
 ```
-
-As you can probably tell this instruction can make the Memory and Main Variable Synchronized or even make the Main Variable be ahead of the memory pointer.
-Which is not very good, because this will effect what the next Variable will be.
-
-# "-"
-This is similar to the "+" instruction except it only moves the read pointer forward and doesnt change the Main Variable.
-This should only be used in conjunction with "~" if absolutely necessary. I can think of no reason as to why this should be used in any other situation.
 
 # Idiomatic IRON
 Quite frankly the phrase "Idiomatic IRON" is somewhat ironic since I have no intention of making the syntax readable.
