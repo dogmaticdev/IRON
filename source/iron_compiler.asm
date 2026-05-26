@@ -27,10 +27,10 @@ align 16
     bitmaskF: db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff
     bitmaskG: db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-    symbols:  db 0x3C, 0x3E, 0x28, 0x29, 0x5B, 0x5C, 0x7B, 0x7C, 0x2B, 0x2C, 0x2E, 0x3D, 0x26, 0x5E, 0x3F, 0x3A
-    ;            <     >     (     )     [     ]     {     }     +     ,     .     =     &     ^     ?     :
-    symbols2: db 0x23, 0x40, 0x5C, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0x7C, 0x2F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-    ;            #     @     \     $     ;     !     `     ~     |     /
+    symbols:  db 0x3C, 0x3E, 0x28, 0x29, 0x5B, 0x5D, 0x7B, 0x7D, 0x3D, 0x26, 0x5E, 0x3F, 0x2A, 0x2E, 0x2C, 0x5F
+    ;            <     >     (     )     [     ]     {     }     =     &     ^     ?     *     .     ,     _
+    symbols2: db 0x23, 0x40, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0x7C, 0x2F, 0x2B, 0x2D, 0x3A, 0xFF, 0xFF, 0xFF, 0xFF
+    ;            #     @     $     ;     !     `     ~     |     /     +     -     :
     letters1: db 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70
     letters2: db 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     despace:  db 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
@@ -86,7 +86,10 @@ section .bss
     save4               resb 8
     save5               resb 8
 
-    stat_buffer         resb 144
+    error_pointer       resb 8
+    error_string        resb 16
+    stat_buffer         resb 144        ; sizeof(struct stat) on x86-64
+
 extern factor
 extern clear_whitespace
 extern delete_filler
@@ -107,6 +110,7 @@ _start:
     jb usage_error
     cmp rax, 5
     ja usage_error
+
     ; ── Open input file ──────────────────────────────────────────────────────
     mov rax, 2        ; open
     mov rdi, [rsp+24] ; argv[2] = input path
@@ -124,7 +128,7 @@ _start:
     syscall
     test rax, rax
     js  fstat_error
-    mov rax, [stat_buffer + 48] ; file size
+    mov rax, [stat_buffer + 48]
     mov [input_size], rax
 
     ; ── Check Usage ──────────────────────────────────────────────────────────
@@ -143,7 +147,7 @@ _start:
     mov rax, 12
     mov rdi, [input_pointer]
     add rdi, [input_size]
-    add rdi, [input_size] ;if someone uses a lot of commas, it might cause a segfault, this is done to avoid that.
+    add rdi, [input_size] ;if someone uses a lot of commas, it can cause a segfault, this is done to avoid that.
     add rdi, 16 ;avoids segfault on small inputs. aka 7 bytes or less.
     syscall
 
@@ -151,7 +155,7 @@ _start:
     mov     rax, 0
     mov     rdi, [input_descriptor]
     mov     rsi, [input_pointer]
-    add     rsi, [input_size] ;we read from the second half of the buffer and input into the first half.
+    add     rsi, [input_size]
     mov     rdx, [input_size]
     syscall
     test     rax, rax
@@ -249,14 +253,14 @@ build:
     mov r15, r14
     add r15, [input_size]
     xor rcx, rcx
+    mov [error_pointer], r14
+    call isolate_string
 
 main_loop:
     cmp r14, r15
     jae end
-    call isolate_string
     mov r12, [database_pointer]
-    ;movdqu xmm1, [r14]
-    ;call isolate_string
+
 next_loop:
     mov al, [r12]
     pinsrb xmm12, eax, 0
@@ -285,10 +289,8 @@ hashtag: ;Hashtag "#", Numerical string length jump table.
     cmp rbx, 0
     je invalid_source_error
     dec rbx
-    add r12, 5
     shl rbx, 3
-    add r12, rbx
-
+    lea r12, [r12 + rbx + 5]
     mov eax, [r12]
     add r12, rax
     jmp next_loop
@@ -314,10 +316,9 @@ at_sign: ;At sign "@", Alphabetical jump table.
     sub al, 0x61
     cmp al, 25
     ja invalid_source_error
-    mov rcx, 10
-    mul rcx
-    add r12, 7
-    add r12, rax
+    lea rax, [rax + rax * 4]
+    shl rax, 1
+    lea r12, [r12 + rax + 7]
     mov eax, [r12]
     add r12, rax
     jmp next_loop
@@ -387,32 +388,20 @@ close_curly: ;Closed Curly Bracket "}", output the word saved from database.
     mov r14, [save4]
     jmp next_loop
 
-plus_sign: ;Plus "+", move word in source pointer into xmm0 then move source read pointer to the next word.
+asterisk: ;Asterisk "*", move word in source pointer into xmm0 then move source read pointer to the next word.
     call isolate_string
     add r12, 2
     jmp next_loop
 
-comma: ;Comma ",", add comma
-    dec r13
-    mov [r13], word 0x002C ; comma
-    add r13, 2
-    add r12, 2
-    jmp next_loop
-
-period: ;Period ".", new line and ends the instruction.
-    dec r13
-    mov [r13], byte 10 ;new line
-    inc r13
-    jmp main_loop
-
-vertical_bar: ;Vertical Bar "|", does a new line but doesn't end the instruction.
+vertical_bar: ;Vertical Bar "|", adds a new line.
     dec r13
     mov [r13], byte 10
     inc r13
     add r12, 2
     jmp next_loop
 
-slash: ;Slash "/", ends the instruction but does not do a new line.
+slash: ;Slash "/", ends the instruction.
+    mov [error_pointer], r14
     jmp main_loop
 
 equal_sign: ;Equal sign "=", output word in database read pointer
@@ -424,15 +413,16 @@ ampersand: ;Ampersand, label start point.
     call database_skip_string
     mov eax, [r12]
     add r12, rax
-    jmp next_loop
-
-skip_ampersand:
-    call database_skip_string
-    add r12, 5
+    cmp byte [r12], 0x2A
+    je asterisk
+    cmp byte [r12], 0x3F
+    je question_mark
     jmp next_loop
 
 exponent: ;Exponent "^", output word in source read pointer
     call copy_string
+    cmp byte [r12], 0x3F
+    je question_mark
     jmp next_loop
 
 question_mark: ;Question mark "?", if else statement
@@ -444,24 +434,66 @@ question_mark: ;Question mark "?", if else statement
     jnc .false
 
 .true:
-    mov al, [r12]
-    cmp al, 0x26
-    jne next_loop
-    call isolate_string
-    jmp ampersand
+    cmp byte [r12], 0x26
+    je ampersand
+    jmp next_loop
 
 .false:
-    mov al, [r12]
-    cmp al, 0x26
-    je skip_ampersand
+    cmp byte [r12], 0x26
+    jne dollar_sign
     call database_skip_string
+    add r12, 5
+    cmp byte [r12], 0x26
+    je ampersand
     jmp next_loop
 
-backslash: ;Backslash "\", decrement output write pointer
+comma: ;Comma ",", add comma
     dec r13
+    mov [r13], word 0x002C ; comma
+    add r13, 2
+    add r12, 2
     jmp next_loop
 
-dollar_sign: ;Dollar sign "$", label endpoint.
+period: ;Period ".", new line moves and ends the instruction.
+    dec r13
+    mov [r13], byte 10 ;new line
+    inc r13
+    mov [error_pointer], r14
+    call isolate_string
+    jmp main_loop
+
+underscore: ;Custom jump table
+    add r12, 2
+    call setup_custom_jump
+    pextrb eax, xmm0, 0
+    pinsrb xmm12, eax, 0
+    pshufb xmm12, xmm10
+    pcmpeqb xmm12, xmm1
+    pmovmskb eax, xmm12
+    tzcnt cx, ax
+    jc .error_jump
+    shl rcx, 3
+    lea r12, [r12 + rcx + 3]
+    mov eax, [r12]
+    add r12, rax
+    jmp next_loop
+
+.error_jump: ;goes to whatever is directly after the last label
+    shr ecx, 1
+    lea r12, [r12 + rcx + 8]
+    jmp next_loop
+
+minus: ;minus "-", decrement output write pointer
+    dec r13
+    add r12, 2
+    jmp next_loop
+
+plus: ;plus "+", increment output write pointer
+    inc r13
+    add r12, 2
+    jmp next_loop
+
+dollar_sign: ;Dollar sign "$", label endpoint. skip database string.
     call database_skip_string
     jmp next_loop
 
@@ -471,10 +503,6 @@ semicolon: ;Semicolon ";", reverse label endpoint.
 
 exclamation_mark: ;Exclamation Mark "!", error
     jmp invalid_source_error
-
-minus: ;Minus "-", move source read pointer to the next word.
-    call skip_string
-    jmp next_loop
 
 do_factor:
     ; ── brk allocate ─────────────────────────────────────────────────────────
@@ -539,6 +567,8 @@ factor_end:
     cmp     rax, 0
     jl      open_output_error
     mov     [output_descriptor], rax
+
+
 
     ; ── Write buffer to output file ──────────────────────────────────────────
     mov     rax, 1 ;write
@@ -613,7 +643,11 @@ invalid_source_error:
     mov     rdi, 2; terminal
     syscall
 
-    mov     rsi, rbx
+    mov     rsi, [error_pointer]
+    mov     [output_pointer], rsi
+    lea     r13, [rsi+16]
+    call    null_to_space
+
     mov     rdx, 16
     mov     rax, 1; write
     mov     rdi, 2; terminal
@@ -633,7 +667,7 @@ exit_error:
     mov     rdi, 1  ;error
     syscall
 
-    ; ── Functions ────────────────────────────────────────────────────────────
+
 get_string_length:
     xor rbx, rbx
     jmp .start
@@ -692,6 +726,19 @@ isolate_database_string:
     shl ecx, 4
     movdqa xmm1, [bitmask0 + rcx]
     pandn xmm1, xmm12
+    ret
+
+setup_custom_jump:
+    pxor xmm1, xmm1
+    movdqu xmm12, [r12]
+    pcmpeqb xmm1, xmm12
+    pmovmskb eax, xmm1
+    tzcnt cx, ax
+    add r12, rcx
+    inc r12
+    shl ecx, 4
+    movdqa xmm1, [bitmask0 + rcx]
+    por xmm1, xmm12
     ret
 
 copy_string: ; ^
@@ -812,19 +859,18 @@ section .data
         dq close_bracket
         dq open_curly
         dq close_curly
-        dq plus_sign
-        dq comma
-        dq period
         dq equal_sign
         dq ampersand
         dq exponent
         dq question_mark
-        dq colon
+        dq asterisk
+        dq period
+        dq comma
+        dq underscore
 
     jump_table2:
         dq hashtag
         dq at_sign
-        dq backslash
         dq dollar_sign
         dq semicolon
         dq exclamation_mark
@@ -832,3 +878,6 @@ section .data
         dq tilde
         dq vertical_bar
         dq slash
+        dq plus
+        dq minus
+        dq colon
