@@ -354,7 +354,7 @@ Variable: turn
 Memory: 8bit
 Variable5: 8bit
 ```
-After: "+"
+After: "*"
 ```
 Variable: 8bit
 Memory: param1
