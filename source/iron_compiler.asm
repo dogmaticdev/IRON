@@ -66,6 +66,12 @@ align 16
     invalid_src:        db 0x22, " is invalid source code syntax", 10
     invalid_src_length: equ $ - invalid_src
 
+    seconds:            db " seconds, ", 0
+    seconds_length:     equ $ - seconds
+
+    nanoseconds:        db " nanoseconds", 10, 0
+    nanoseconds_length: equ $ - nanoseconds
+
 section .bss
     input_descriptor    resb 8
     input_size          resb 8
@@ -85,6 +91,10 @@ section .bss
     save3               resb 8
     save4               resb 8
     save5               resb 8
+
+    start_time          resb 16
+    end_time            resb 16
+    numBuf              resb 20
 
     error_pointer       resb 8
     error_string        resb 16
@@ -180,6 +190,12 @@ _start:
     syscall
 
 build:
+    ;  ── Start Time ──────────────────────────────────────────────────────────
+    mov rax, 228
+    mov rdi, 1
+    mov rsi, start_time
+    syscall
+
     call filter_text
 
     call clear_whitespace
@@ -543,6 +559,12 @@ do_factor:
     add rdi, [input_size] ;allocating double the length to the output so i dont have to reallocate.
     syscall
 
+    ;  ── Start Time ──────────────────────────────────────────────────────────
+    mov rax, 228
+    mov rdi, 1
+    mov rsi, start_time
+    syscall
+
     call clear_whitespace
     call factor
     mov     rdi, [rsp+32] ; argv[3] = output file
@@ -568,7 +590,35 @@ factor_end:
     jl      open_output_error
     mov     [output_descriptor], rax
 
+    ; ── End Time ─────────────────────────────────────────────────────────────
+    mov rax, 228
+    mov rdi, 1
+    mov rsi, end_time
+    syscall
 
+    ; ── Get Elapsed Time ─────────────────────────────────────────────────────
+    mov rax, [end_time]
+    sub rax, [start_time]
+    mov rbx, [end_time + 8]
+    sub rbx, [start_time + 8]
+    push rbx
+
+    ; ── Convert Seconds to Ascii Then Print ──────────────────────────────────
+    call print_uint
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, seconds
+    mov rdx, seconds_length
+    syscall
+
+    ; ── Convert Nano Seconds to Ascii Then Print ─────────────────────────────
+    pop rax
+    call print_uint
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, nanoseconds
+    mov rdx, nanoseconds_length
+    syscall
 
     ; ── Write buffer to output file ──────────────────────────────────────────
     mov     rax, 1 ;write
@@ -847,6 +897,26 @@ full_to_space: ;changes 0xFF bytes to 0x20, 0x20 is space " "
     jmp .main_loop
 
 .end:
+    ret
+
+print_uint:
+    mov rcx, numBuf + 20
+    mov rbx, 10
+
+.printer:
+    xor rdx, rdx
+    div rbx
+    add dl, '0'
+    dec rcx
+    mov [rcx], dl
+    test rax, rax
+    jnz .printer
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, rcx
+    mov rdx, numBuf + 20
+    sub rdx, rcx
+    syscall
     ret
 
 section .data
