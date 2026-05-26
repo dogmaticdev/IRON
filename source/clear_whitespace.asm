@@ -55,6 +55,14 @@ clear_whitespace:
     xor rdx, rdx
     xor rdi, rdi
     xor rsi, rsi
+    jmp .main_loop
+
+.clear:
+    cmp rsi, 0
+    je .main_loop
+    mov byte [r8], 0x00
+    inc r8
+    xor rsi, rsi
 
 .main_loop:
 
@@ -77,19 +85,19 @@ clear_whitespace:
     jz .full
 
     tzcnt    cx, ax
-    jc .main_loop
+    jc .clear
     jz .skip
 
     shr      ax, cl
     test     sil, sil
     jz .check
-    xor      sil, sil
     dec      cx
     inc      dx
     test     cx, cx
     jnz .check
 
 .skip:
+    xor edi, edi
     movdqa   xmm5, xmm2
     jmp .next
 
@@ -106,6 +114,8 @@ clear_whitespace:
     shr      ax, cl
     add      dx, cx
     dec      cx
+    add      cl, sil
+    xor      rsi, rsi
     shl      ecx, 4
     movdqa   xmm0, [bitmask0 + rcx]
 
