@@ -1,6 +1,6 @@
 ;nasm -f elf64 tokenizer.asm -o tokenizer.o && ld tokenizer.o -o whitespace
 ;./tokenizer hell.txt output.txt
-
+BITS 64
 section .data
 align 16
 
@@ -40,136 +40,165 @@ section .text
 
 clear_whitespace:
     ; ── Allocate Pointers ────────────────────────────────────────────────────
-    mov r8, [input_pointer]
-    mov r9, [input_pointer]
-    mov r10, [input_pointer]
-    add r10, [input_size]
+    mov r13, [input_pointer]
+    %define Write_Pointer r13
+
+    mov r14, r13
+    %define Read_Pointer r14
+
+    mov r15, r13
+    add r15, [input_size]
+    %define End_Pointer r15
+
+    ; ── Constant Registers ───────────────────────────────────────────────────
+
+    movdqa xmm15, [despace]
+    %define Space xmm15
+
+    movdqa xmm14, [index0]
+    %define Index0 xmm14
+
+    movdqa xmm13, [sign]
+    %define Sign xmm13
 
 
-    ; ── Setup Registers ──────────────────────────────────────────────────────
+    ; ── Variable Registers ───────────────────────────────────────────────────
+    ;Example, in String is H e l l o SPACE SPACE W o r l d SPACE SPACE SPACE SPACE
 
-    movdqa xmm1, [despace]
-    movdqa xmm2, [index0]
-    movdqa xmm15, [sign]
+    %define Blend_Mask xmm0
+    %define String xmm1
+    %define Index xmm2
+    %define Temp_Index xmm3
+    %define Byte_Mask xmm4
+    %define Scratch xmm5
+
+    %define Bool rsi
+
     xor rcx, rcx
     xor rdx, rdx
     xor rdi, rdi
-    xor rsi, rsi
+    xor Bool, Bool
+    xor r8, r8
     jmp .main_loop
 
 .clear:
-    cmp rsi, 0
+    cmp Bool, 0
     je .main_loop
-    mov byte [r8], 0x00
-    inc r8
-    xor rsi, rsi
+    mov byte [Write_Pointer], 0x00
+    inc Write_Pointer
+    xor Bool, Bool
 
 .main_loop:
-
-    cmp r9, r10
+    cmp Read_Pointer, End_Pointer
     jge .end
 
-    movdqa xmm3, [r9]
-    add r9, 16
+    movdqa   String, [Read_Pointer]
+    add      Read_Pointer, 16
 
-    pxor   xmm14, xmm14
-    movdqa   xmm4, xmm3
-    movdqa   xmm5, xmm3
-    psubusb  xmm5, xmm15
-    pcmpgtb  xmm14, xmm5
-    pcmpgtb  xmm4, xmm1
-    por      xmm4, xmm14
-    pmovmskb eax, xmm4
-    pand     xmm4, xmm3
+    pxor     Scratch, Scratch       ; 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    movdqa   Byte_Mask, String      ; 48 65 6C 6C 6F 20 20 57 6F 72 6C 64 20 20 20 20
+    movdqa   Index, String          ; 48 65 6C 6C 6F 20 20 57 6F 72 6C 64 20 20 20 20
+    psubusb  Index, Sign            ; 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    pcmpgtb  Scratch, Index         ; 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    pcmpgtb  Byte_Mask, Space       ; ff ff ff ff ff 00 00 ff ff ff ff ff 00 00 00 00
+    por      Byte_Mask, Scratch     ; ff ff ff ff ff 00 00 ff ff ff ff ff 00 00 00 00
+    movdqa   Scratch, Byte_Mask     ; ff ff ff ff ff 00 00 ff ff ff ff ff 00 00 00 00
+    pextrb eax, Byte_Mask, 15
+    cmp al, 0xFF
+    sete dil
+
+    pslldq   Scratch, 1             ; 00 ff ff ff ff ff 00 00 ff ff ff ff ff 00 00 00
+    pand     String, Byte_Mask      ; 48 65 6C 6C 6F 00 00 57 6F 72 6C 64 00 00 00 00
+    por      Byte_Mask, Scratch     ; ff ff ff ff ff ff 00 ff ff ff ff ff ff 00 00 00
+    pmovmskb eax, Byte_Mask         ; 1 1 1 1 1 1 0 1 1 1 1 1 1 0 0 0
+
     cmp      ax, 0xFFFF
     jz .full
 
-    tzcnt    cx, ax
+    tzcnt    cx, ax                 ; 0
     jc .clear
-    jz .skip
+    jz .preskip                        ; jump taken
 
     shr      ax, cl
     test     sil, sil
     jz .check
     dec      cx
-    inc      dx
     test     cx, cx
     jnz .check
+    jmp .skip
+
+.preskip:
+    xor rsi, rsi
 
 .skip:
-    xor edi, edi
-    movdqa   xmm5, xmm2
+    xor      r8, r8
+    movdqa   Index, Index0          ; 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
     jmp .next
 
 .check:
-    mov      edi, ecx
-    shl      ecx, 4
-    movdqa   xmm5, [index0 + rcx]
-.next:
-    not      ax
-    tzcnt    cx, ax
-    not      ax
+    mov      r8, rcx
+    shl      rcx, 4
+    movdqa   Index, [index0 + rcx]
 
-    inc      cx
-    shr      ax, cl
-    add      dx, cx
-    dec      cx
+.next:
+    not      ax                     ; 0 0 0 0 0 0 1 0 0 0 0 0 0 1 1 1
+    tzcnt    cx, ax                 ; 6
+    not      ax                     ; 1 1 1 1 1 1 0 1 1 1 1 1 1 0 0 0
+
+    shr      ax, cl                 ; 0 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0
     add      cl, sil
-    xor      rsi, rsi
-    shl      ecx, 4
-    movdqa   xmm0, [bitmask0 + rcx]
+    add      dx, cx                 ; 6
+
+    shl      rcx, 4                 ; 96
+    movdqa   Blend_Mask, [bitmask0 + rcx] ; 00 00 00 00 00 00 FF FF FF FF FF FF FF FF FF FF
 
 .string_loop:
-    xor      ecx, ecx
     tzcnt    cx, ax
     jc .end_loop
-    jz .skip2
 
-    add      di, cx
-    shr      ax, cl
-    mov      ecx, edi
-    shl      ecx, 4
-    movdqa   xmm6, [index0 + rcx]
-    pblendvb xmm5, xmm6
+    shr      ax, cl                 ; 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
+    add      r8, rcx
+    mov      rcx, r8
+    shl      rcx, 4
+    movdqa   Temp_Index, [index0 + rcx] ; 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F FF
+    pblendvb Index, Temp_Index          ; 00 01 02 03 04 05 07 08 09 0A 0B 0C 0D 0E 0F FF
 
 .skip2:
-    not      ax
-    tzcnt    cx, ax
-    not      ax
+    not      ax                     ; 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1
+    tzcnt    cx, ax                 ; 6
+    not      ax                     ; 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
 
-    inc      cx
-    shr      ax, cl
-    add      dx, cx
-    mov      cx, dx
-    dec      cx
+    shr      ax, cl                 ; 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    add      dx, cx                 ; 12
+    mov      cx, dx                 ; 12
 
-    shl ecx, 4
-    movdqa   xmm0, [bitmask0 + rcx]
+    shl      rcx, 4
+    movdqa   Blend_Mask, [bitmask0 + rcx] ; 00 00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF
 
     jmp .string_loop
 
 .end_loop:
-    lea      ecx, [edx + edi]
-    xor      edi, edi
-    cmp      ecx, 17
-    setz sil
-    sub      edx, esi
+    cmp      dil, 1
+    sete     sil
+    xor      rdi, rdi
 
-    pshufb   xmm4, xmm5
-    movdqu   [r8], xmm4
-    add      r8, rdx
-    xor      edx, edx
+    pshufb   String, Index          ; 48 65 6C 6C 6F 00 57 6F 72 6C 64 00 00 00 00 00
+    movdqu   [Write_Pointer], String
+    add      Write_Pointer, rdx
+    xor      rdx, rdx
     jmp .main_loop
 
 .full:
-    movdqu   [r8], xmm3
-    mov      rsi, 1
-    add      r8, 16
+    movdqu   [Write_Pointer], String
+    cmp      dil, 1
+    sete     sil
+    xor      rdi, rdi
+    add      Write_Pointer, 16
     jmp .main_loop
 
 .end:
-    pxor xmm0, xmm0
-    movdqu [r8], xmm0
-    sub r8, [input_pointer]
-    mov [input_size], r8
+    pxor Scratch, Scratch
+    movdqu [Write_Pointer], Scratch
+    sub Write_Pointer, [input_pointer]
+    mov [input_size], Write_Pointer
     ret
