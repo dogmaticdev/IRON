@@ -265,8 +265,7 @@ In this case, "&Print" is the first option and "&Something_Else" is the second o
 "^" prints the word that is in memory then looks at the next word in memory.
 
 # "*"
-"+" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
-I won't lie, the "+" is where this language becomes cursed and confusing, In the "Idiomatic IRON" section, I explain how to mitigate this complexity, but it is still a pain regardless.
+"*" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
 Ex: "turn 8bit param1"
 Before: "+"
 ```
