@@ -15,7 +15,7 @@ movsldup xmm1, xmm2
 movdqu xmm1, xmm2
 movdqa xmm1, xmm2
 ```
-It was able to compile this source code to assembly in 55000 nano seconds.
+It was able to compile this source code to assembly in 55 micro seconds.
 
 This is the code:
 ```
