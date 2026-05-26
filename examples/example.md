@@ -17,54 +17,52 @@ movdqa xmm1, xmm2
 ```
 This is the code:
 ```
-    ? 128bit &128bit &next
+    $128bit < * `
+    ? float &float &next2
 
-        $128bit (
-        ? float &float &next1
+        $float < * *
+        ? even &even &next3
 
-            $float < +
-            ? even &even &next2
+            $even *
+            ? replicate &replicate !
+                $replicate = movsldup > , ^ .
 
-                $even <
-                ? replicate &replicate !
-                    $replicate = movsldup ) , > .
+        $next3
+        ? odd &odd &float
 
-            $next2
-            ? odd &odd &float
+            $odd *
+            ? replicate &replicate !
+                $replicate = movshdup > , ^ .
 
-                $odd <
-                ? replicate &replicate !
-                    $replicate = movshdup ) , > .
+        $float ~ = movups ^ , ^ .
 
-            $float = movups ) , > .
+    $next2
+    ? double &double &next2
 
-        $next1
-        ? double &double &next1
+        $double * `
+        ? float &float !
 
-            $double <
+            $float < * *
+            ? replicate &replicate &float
+                $replicate = movddup > , ^ .
+
+            $float ~ = movupd ^ , ^ .
+
+    $next2
+    ? aligned &aligned &basic
+
+        $aligned *
+        ? float &float &next3
+            $float = movaps ^ , ^ .
+
+        $next3 *
+        ? double &double &aligned
+
+            $double *
             ? float &float !
+                $float = movapd ^ , ^ .
 
-                $float ` + (
-                ? replicate &replicate &float
-                    $replicate = movddup > , ) .
+        $aligned ~ = movdqa ^ , ^ .
 
-                $float = movupd > , ~ ^ .
-
-        $next1
-        ? aligned &aligned &basic
-
-            $aligned <
-            ? float &float &next2
-                $float = movaps > , ^ .
-
-            $next2
-            ? double &double &aligned
-
-                $double (
-                ? float &float !
-                    $float = movapd ) , ^ .
-
-            $aligned = movdqa ) , ^ .
-
-        $basic = movdqu > , ^ .
+    $basic = movdqu > , ^ .
 ```
