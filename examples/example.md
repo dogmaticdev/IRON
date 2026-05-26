@@ -6,6 +6,8 @@ turn 128bit double float xmm1 into xmm2
 turn 128bit float xmm1 into even replicate xmm2
 turn 128bit xmm1 into xmm2
 turn 128bit aligned xmm1 into xmm2
+turn 16bit xmm1 into xmm2
+turn 64bit xmm1 into xmm2
 ```
 And have IRON output this:
 ```
@@ -14,6 +16,8 @@ movupd xmm1, xmm2
 movsldup xmm1, xmm2
 movdqu xmm1, xmm2
 movdqa xmm1, xmm2
+mov word xmm1, xmm2
+mov qword xmm1, xmm2
 ```
 It was able to compile this source code to assembly in 55 micro seconds.
 
