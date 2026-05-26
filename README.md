@@ -77,9 +77,7 @@ ld iron_compiler.o delete_filler.o filter_text.o setup.o clear_whitespace.o -o i
 If you would like to see a working example of IRON in practice check out the example.MD in the examples folder.
 
 # Syntax
-IRON intentionally uses one symbol per instruction for maximum performance.
-
-Currently the existing jump tables are fairly basic, and more interoptabiltiy may be added in the future.
+IRON intentionally uses one symbol per instruction for minimum file size.
 
 # "#"
 "#" Used to indicate a jump table with 16 options, it considers the length of a source code word.
@@ -116,6 +114,7 @@ Ex:
 The "_" jump table requires that each label below it is exactly 2 characters long, it can have up to a maximum of 16 options. 
 It can have any number of options between 1-16.
 it compares the first letter in the word to the provided string of letters and jumps accordingly.
+
 Ex:
 _ abcdef789213
 &a
