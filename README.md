@@ -180,8 +180,10 @@ The exclamation mark "!" is used to indicate undefined behavior, if IRON reads t
 "@" is another jump table, but this one must have exactly 26 options. 
 It takes the first letter of the word, and jumps to the corresponding table representing that letter.
 Each option must be exactly 4 letters long.
+
 Ex:
 `&a1-`
+
 The "-" is used to fulfill the 4 letter requirement and doesnt serve any other purpose.
 
 # "="
