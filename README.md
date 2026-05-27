@@ -1,7 +1,13 @@
 # IRON
 IRON a.k.a. Intermediate Representation Object Notation is a Interpreter/Database that is used to create Programming Languages.
+It can compile source code into IR at 6.3 million lines of code per second.
+
 IRON is entirely written in assembly, It is currently only compatible with Linux on 86-64 CPUs. 
-Porting to MacOS and Windows is not a challenge and will be done in the near future, Although ARM will have to wait.
+Porting to MacOS and Windows is not a challenge and will be done in the near future, Although ARM CPU's and such will have to wait.
+
+# Stats
+It takes roughly 1,569,451 nano seconds to convert 10,000 lines of source code into IR.
+10,000 ÷ 0.001569451 = 6,371,658.86 or 6.3 million LOC/s 
 
 # How it is used
 You create a database, then input source code into IRON and it will match that source code to the database and output the IR as specified.
