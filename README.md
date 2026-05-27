@@ -10,6 +10,10 @@ It takes roughly 1,569,451 nano seconds to convert 10,000 lines of source code i
 
 10,000 ÷ 0.001569451 = 6,371,658.86 or 6.3 million LOC/s 
 
+# What is IR
+Intermediate Representation, is essentially a lower level form of code. 
+If a compiler converts your code into assembly before compiling it into machine code, then Assembly would be the IR for your code.
+
 # How it is used
 You create a database, then input source code into IRON and it will match that source code to the database and output the IR as specified.
 
@@ -33,14 +37,10 @@ While a naive, if else implementation would require a maximum of 4.
 This naturally has a compounding effect when the destinations lead to more jump tables. Which allows for extremely low lookup times in large databases.
 
 # Limitations
-You can, more or less, create an entire programming language by solely using IRON, this comes at the caveat that you must use explicit types.
-You can of course, make a program that reads the IR and determines if it is using the correct types and have it handle implicit types.
-Or have the IR be in another programming language and have that programming language handle implicit types.
-But I don't intend on adding in such functionality directly into IRON.
+Currently IRON does not allow for the implementation of type checking, this is planned to be introduced in future updates. 
+Along with error handling and such.
 
-Although, IRON gives you a lot of control, so it may be possible to force it to consider implicit types.
-
-This can be removed later on, but IRON removes "filler text" from the source code.
+This can be stopped, but IRON deletes "filler text" from source code.
 The filler words are, "as" "by" "is" "of" "or" "to" "so" "and" "for" "has" "the" "from" "into" "that" "with"
 if you would like to use these words, simply remove this text from "iron_compiler.asm"
 
@@ -51,26 +51,26 @@ if you would like to use these words, simply remove this text from "iron_compile
     call delete_filler
 ```
 
-Also IRON considers only Parenthesis "()" in the source code to be comments and will remove them. There are no comments in the database.
+Also IRON considers Parenthesis "()" in the source code to be comments and will remove them.
 If you want to use parenthesis or want comments to be something else, 
 change the "lefts" and "rights" variables in "filter_text.asm" to a ascii hexcode of your choice.
 
 # Creating Databases
-You make a script and IRON will remove all whitespace from it, compute the jump tables, and then IRON will use it as the database in the future.
+You make a script and IRON will remove all whitespace from it, compute the jump tables, and then IRON can use it as a database in the future.
 The command for this is:
 ```
 ./iron factor script.txt database.txt
 ```
-"script.txt" and "database.txt" can be anything you want.
+"script.txt" is the input and "database.txt" is the output, the names can be anything.
 
 To create the IR for source code, the command is:
 ```
 ./iron build source.txt database.txt output.txt
 ```
-"source.txt", "database.txt" and "output.txt" can be anything you want.
+"source.txt" is the input source code, "database.txt" is the database and "output.txt" is the outputted IR, the names can be anything.
 
 # To Build IRON
-You first need to install nasm, then use these commands in the folder you have downloaded the IRON source code into.
+You first need to install nasm, then use these commands in the folder you have downloaded the IRON source code into, run these commands in the terminal.
 ```
 nasm -f elf64 iron_compiler.asm -o iron_compiler.o
 nasm -f elf64 delete_filler.asm -o delete_filler.o
@@ -149,13 +149,19 @@ When "&" is read by IRON, it jumps to the next instance of that label, but with 
 Ex:
 ```
 &Print
+...
 $Print
 ```
-IRON will jump from "&Print" to "$Print"
+In this example, IRON will jump from "&Print" to "$Print"
+
+$Print is considered the end point for &Print, i.e. the location that is jumped to when "&Print" is read.
 
 If you want to have multiple labels with the name, that is fine, IRON only cares about the closest label of the same name.
 
-Jumps are precomputed, so you wont have to worry about searching for a string when building your source code.
+Jumps are precomputed, so IRON does not search for string during the compilation of source code. 
+Only when factoring the database does IRON match labels to their end points.
+
+The maximum jump size currently has a 32 bit unsigned integer limit or 4,294,967,295. Which is effectively 4gb. 
 
 When using "&" and "$" the "$" must always be below the "&" and never above it.
 # ";"
@@ -166,8 +172,6 @@ Ex:
 :Print
 ```
 IRON will jump from ":Print" to ";Print"
-
-The maximum jump size currently has a 32 bit unsigned integer limit or 4,294,967,295. Which is effectively 4gb. 
 
 # "!"
 The exclamation mark "!" is used to indicate undefined behavior, if IRON reads this symbol, it will stop and return an error.
@@ -181,7 +185,7 @@ Ex:
 The "-" is used to fulfill the 4 letter requirement and doesnt serve any other purpose.
 
 # "="
-"=" The equal sign is used to designate the next string to be outputted into the IR.
+"=" The equal sign is used to indicate the string ahead of the "=" in the database is to be outputted from the database into the IR.
 Ex:
 
 ```
@@ -204,7 +208,7 @@ Would print out:
 HelloWorld
 ```
 
-Backslash doesn't just get rid of a space but the previous character that is outputted.
+Minus doesn't just get rid of a space but the previous character that is outputted.
 Ex:
 ```
 = Hello - -
@@ -216,7 +220,7 @@ Hell
 # "+"
 a plus does the opposite of minus and adds a space.
 
-IRON doesn't stop you from printing any of the symbols.
+IRON doesn't stop you from printing anything out.
 Ex:
 ```
 = = = &Print
@@ -246,16 +250,17 @@ Outputs:
 ```
 Hello World`
 ```
-at the end of "Hello World", the process returns back to the start of the database and searches for the word using the jump tables.
+At the end of "Hello World", the process returns back to the start of the database and searches for the word using the jump tables.
+So the second instruction is ignored.
 
 # "|"
-if you want to add a new line but don't want to end the command use the vertical bar"|"
+if you want to add a new line but don't want to end the command use the vertical bar "|"
 
 # "/"
 if you want to end the command but don't want to add a new line use "/"
 
 # "?"
-"?" the question mark symbol compares the next string, with the current source code string.
+"?" the question mark symbol compares the next string, with the string inside of the register.
 The question mark will only compare the first 16 bytes of a string.
 However, is no limit to the size of a string that can be outputted with "=".
 
@@ -266,24 +271,32 @@ Ex:
 ```
 ? Print &Print &Something_Else
 ```
-In this case, "&Print" is the first option and "&Something_Else" is the second option.
+In this case, "&Print" is the "if string is print" option and "&Something_Else" is the "if string is not print" option.
 
 # "^"
-"^" prints the word that is in memory then looks at the next word in memory.
+"^" prints the word that is in the source code file then jumps to the next word in the source code file.
 
 # "*"
-"*" loads the next word in memory to the main variable and looks at the next word in memory. It doesn't print anything out and is used to skip words.
+"*" stores the word in the source code file to the register and jumps to the next word in the source code file. 
+It doesn't print anything out and is used to skip words.
 Ex: "turn 8bit param1"
 Before: "+"
 ```
-Variable: turn
-Memory: 8bit
+Register: turn
+Source Code Word: 8bit
 ```
-After:
+After: "+"
 ```
-Variable: 8bit
-Memory: param1
+Register: 8bit
+Source Code Word: param1
 ```
+
+# "<" and "("
+These two symbols both serve the same purpose, they each store the current Source Code Word into memory.
+This does not affect the Register or the Source Code Word.
+
+To print either Variable into the output, use the closing ">" or ")" respectively.
+This is used to save a word in the Source Code for later.
 
 This is database code that I have written as an example:
 ```
@@ -306,17 +319,19 @@ mov byte param1, param2
 This may seem confusing at first, but i will outline what is happening at each step.
 At: `$t4-`
 ```
-Variable: turn
-Memory: 8bit
+Register: turn
+Source Code Word: 8bit
 ```
+It jumped from the jump table at the start of the database to here.
+
 At: `? turn &turn &then`
 it resolves to true and jumps to $turn
 
 At: $turn *
 ```
-Variable: 8bit
-2nd Variable: param1
-Memory: param2
+Register: 8bit
+Stored Word: param1
+Source Code Word: param2
 ```
 
 At: `? 8bit &8bit &next`
@@ -324,16 +339,10 @@ it resolves to true and jumps to $8bit
 
 Then it prints `mov byte` and then the first and second paramaters.
 
-# "<" and "("
-These two symbols both serve the same purpose, they each copy the location of a word in memory into distinct variables.
-This does not affect the main Variable or the Memory word.
 
-This is used to print this word into the IR output at a later time.
-
-To print either Variable into the output, use the closing ">" or ")" respectively.
 
 # "{" 
-`{` stores a word that is in the database to another variable.
+`{` stores a word in the database into memory to be outputted into IR later.
 Ex:
 ```
 { Hello
@@ -345,10 +354,10 @@ The closing `}` prints that variable to the output.
 `[` is used for storing a position in the database.
 whenever the closing `]` is read, the database pointer jumps back to wherever the `[` was found.
 This is used to create loops.
-And there is nothing stopping you from making an infinite loop and having IRON crash your computer, so i would suggest not doing that.
+And there is nothing stopping you from making an infinite loop, so I would suggest avoiding that.
 
 # "`" and "~"
-Like the open and close pairs, the backtick represents open and the tilde represents closed. There were no more sane ascii keys so I just picked these.
+Like the previous open and close pairs, the backtick represents open and the tilde represents closed.
 The back tick saves the source read pointer into a variable, and the tilde moves the source memory pointer to the saved one.
 So if you wanted to move back to a word after doing "*" you can do it with this.
 Ex: "turn 8bit param1"
@@ -379,8 +388,8 @@ Variable5: 8bit
 Quite frankly the phrase "Idiomatic IRON" is somewhat ironic since I have no intention of making the syntax readable.
 But that is mainly due to the fact that most instructions cannot be represented intuitively by a single word, and because ascii symbols only take up 1 byte of space.
 
-IRON doesnt care about whitespace and will delete any and all whitespace you have in your precompiled database.
-But If you do not use whitespace in the very specific manner im about to show you, it becomes impossible to write anything in IRON.
+IRON doesnt care about whitespace and will delete any and all whitespace you have in your precompiled database. 
+The following whitespace guidline is purely for clarity and isn't required.
 
 That is, for every label1 in a: 
 `? string &label1 &label2`
