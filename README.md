@@ -30,7 +30,7 @@ Based on the input, a number 1-4 for will be generated, and then IRON will move 
 With the use of a jump table, In this example, IRON will only do 1 comparison in order to evaluate which option is picked.
 While a naive, if else implementation would require a maximum of 4.
 
-This naturally has a compounding effect when the destinations lead to more jump tables.
+This naturally has a compounding effect when the destinations lead to more jump tables. Which allows for extremely low lookup times in large databases.
 
 # Limitations
 You can, more or less, create an entire programming language by solely using IRON, this comes at the caveat that you must use explicit types.
