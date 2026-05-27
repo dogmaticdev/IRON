@@ -7,6 +7,7 @@ Porting to MacOS and Windows is not a challenge and will be done in the near fut
 
 # Stats
 It takes roughly 1,569,451 nano seconds to convert 10,000 lines of source code into IR.
+
 10,000 ÷ 0.001569451 = 6,371,658.86 or 6.3 million LOC/s 
 
 # How it is used
