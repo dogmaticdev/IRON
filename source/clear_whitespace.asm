@@ -1,6 +1,3 @@
-;nasm -f elf64 tokenizer.asm -o tokenizer.o && ld tokenizer.o -o whitespace
-;./tokenizer hell.txt output.txt
-BITS 64
 section .data
 align 16
 
@@ -56,11 +53,10 @@ clear_whitespace:
     %define Space xmm15
 
     movdqa xmm14, [index0]
-    %define Index0 xmm14
+    %define Base_Index xmm14
 
     movdqa xmm13, [sign]
     %define Sign xmm13
-
 
     ; ── Variable Registers ───────────────────────────────────────────────────
     ;Example, in String is H e l l o SPACE SPACE W o r l d SPACE SPACE SPACE SPACE
@@ -132,7 +128,7 @@ clear_whitespace:
 
 .skip:
     xor      r8, r8
-    movdqa   Index, Index0          ; 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+    movdqa   Index, Base_Index          ; 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
     jmp .next
 
 .check:
@@ -163,7 +159,6 @@ clear_whitespace:
     movdqa   Temp_Index, [index0 + rcx] ; 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F FF
     pblendvb Index, Temp_Index          ; 00 01 02 03 04 05 07 08 09 0A 0B 0C 0D 0E 0F FF
 
-.skip2:
     not      ax                     ; 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1
     tzcnt    cx, ax                 ; 6
     not      ax                     ; 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
