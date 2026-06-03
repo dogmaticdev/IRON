@@ -1,12 +1,3 @@
-;   nasm -f elf64 iron_compiler.asm -o iron_compiler.o
-;   nasm -f elf64 delete_filler.asm -o delete_filler.o
-;   nasm -f elf64 filter_text.asm -o filter_text.o
-;   nasm -f elf64 setup.asm -o setup.o
-;   nasm -f elf64 clear_whitespace.asm -o clear_whitespace.o
-;   ld iron_compiler.o delete_filler.o filter_text.o setup.o clear_whitespace.o -o iron
-;./iron build instructions.txt database.iron instructions.asm
-;./iron factor database.txt database.iron
-BITS 64
 section .data
 align 16
     bitmask0: db 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff ;16
@@ -29,8 +20,10 @@ align 16
 
     symbols:  db 0x3C, 0x3E, 0x28, 0x29, 0x5B, 0x5D, 0x7B, 0x7D, 0x3D, 0x26, 0x5E, 0x3F, 0x2A, 0x2E, 0x2C, 0x5F
     ;            <     >     (     )     [     ]     {     }     =     &     ^     ?     *     .     ,     _
-    symbols2: db 0x23, 0x40, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0x7C, 0x2F, 0x2B, 0x2D, 0x3A, 0xFF, 0xFF, 0xFF, 0xFF
-    ;            #     @     $     ;     !     `     ~     |     /     +     -     :
+    symbols2: db 0x23, 0x40, 0x24, 0x3B, 0x21, 0x60, 0x7E, 0x7C, 0x2F, 0x2B, 0x2D, 0x3A, 0x61, 0x41, 0x62, 0x42
+    ;            #     @     $     ;     !     `     ~     |     /     +     -     :     a     A     b     B
+    symbols3: db 0x63, 0x43, 0x71, 0x51, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+    ;            c     C     q     Q
     letters1: db 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70
     letters2: db 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     despace:  db 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
@@ -91,6 +84,11 @@ section .bss
     save3               resb 8
     save4               resb 8
     save5               resb 8
+    save6               resb 8
+    save7               resb 8
+    save8               resb 8
+    save9               resb 1
+    temp_save           resb 8
 
     start_time          resb 16
     end_time            resb 16
@@ -254,10 +252,13 @@ build:
     movdqa xmm15, [symbols]
     movdqa xmm14, [letters1]
     movdqa xmm13, [letters2]
-    movdqa xmm9, [despace]
-    movdqa xmm7, [symbols2]
-    pcmpeqb xmm6, xmm6
     pxor xmm10, xmm10
+    movdqa xmm9, [despace]
+    movdqa xmm8, [symbols2]
+    movdqa xmm7, [symbols3]
+    pcmpeqb xmm6, xmm6
+
+    lea r8, [rel jump_table3]
     lea r9, [rel jump_table2]
     lea r10, [rel jump_table]
     mov r12, [database_pointer]
@@ -274,14 +275,14 @@ build:
 
 main_loop:
     cmp r14, r15
-    jae end
+    ja end
     mov r12, [database_pointer]
 
 next_loop:
     mov al, [r12]
     pinsrb xmm12, eax, 0
     pshufb xmm12, xmm10
-    movdqa xmm8, xmm12
+    movdqa xmm11, xmm12
     pcmpeqb xmm12, xmm15
     pmovmskb eax, xmm12
 
@@ -291,14 +292,23 @@ next_loop:
     jmp [r10 + rcx*8]
 
 second_table:
-    pcmpeqb xmm8, xmm7
-    pmovmskb eax, xmm8
+    movdqa xmm12, xmm11
+    pcmpeqb xmm11, xmm8
+    pmovmskb eax, xmm11
+
+    tzcnt cx, ax
+    jc third_table
+    jmp [r9 + rcx*8]
+
+third_table:
+    pcmpeqb xmm12, xmm7
+    pmovmskb eax, xmm12
 
     tzcnt cx, ax
     jc invalid_database_error
-    jmp [r9 + rcx*8]
+    jmp [r8 + rcx*8]
 
-hashtag: ;Hashtag "#", Numerical string length jump table.
+hashtag: ;Hashtag "#", Numerical string length jump table. 2 skips the # symbol, then 3 skips the label, total 5
     call get_length
     cmp rbx, 16
     ja invalid_source_error
@@ -331,12 +341,16 @@ at_sign: ;At sign "@", Alphabetical jump table.
     pextrb eax, xmm0, 0
     sub al, 0x61
     cmp al, 25
-    ja invalid_source_error
+    ja .error_jump
     lea rax, [rax + rax * 4]
     shl rax, 1
     lea r12, [r12 + rax + 7]
     mov eax, [r12]
     add r12, rax
+    jmp next_loop
+
+.error_jump: ;goes to whatever is directly after the last label
+    add r12, 262
     jmp next_loop
 
 colon: ;Colon ":" inverse label start point.
@@ -351,11 +365,34 @@ open_arrow: ;Open Arrow "<", save the word from the source read pointer.
     jmp next_loop
 
 close_arrow: ;Closed Arrow ">", output the word saved from the source read pointer
-    mov rax, [save1]
-    mov [save1], r14
-    mov r14, rax
-    call copy_string
+    mov [temp_save], r14
     mov r14, [save1]
+    call copy_string
+    mov r14, [temp_save]
+    jmp next_loop
+
+a_lower:
+    mov [save6], r14
+    add r12, 2
+    jmp next_loop
+
+a_upper:
+    mov [temp_save], r14
+    mov r14, [save6]
+    call copy_string
+    mov r14, [temp_save]
+    jmp next_loop
+
+b_lower:
+    mov [save7], r14
+    add r12, 2
+    jmp next_loop
+
+b_upper:
+    mov [temp_save], r14
+    mov r14, [save7]
+    call copy_string
+    mov r14, [temp_save]
     jmp next_loop
 
 back_tick: ;Back Tick "`" saves the current position of the read pointer.
@@ -374,11 +411,10 @@ open_parenthesis: ;Open Parenthesis "(", save the word from the source read poin
     jmp next_loop
 
 close_parenthesis: ;Closed Parenthesis ")", output the word saved from the source read pointer.
-    mov rax, [save2]
-    mov [save2], r14
-    mov r14, rax
-    call copy_string
+    mov [temp_save], r14
     mov r14, [save2]
+    call copy_string
+    mov r14, [temp_save]
     jmp next_loop
 
 open_bracket: ;Open Square Bracket "[", save the position of the database read pointer.
@@ -397,16 +433,30 @@ open_curly: ;Open Curly Bracket "{", save the word in the database read pointer.
     jmp next_loop
 
 close_curly: ;Closed Curly Bracket "}", output the word saved from database.
-    mov rax, [save4]
-    mov [save4], r14
-    mov r14, rax
-    call copy_string
+    mov [temp_save], r14
     mov r14, [save4]
+    call copy_string
+    mov r14, [temp_save]
+    jmp next_loop
+
+c_lower:
+    add r12, 2
+    mov [save8], r12
+    call database_skip_string
+    jmp next_loop
+
+c_upper:
+    mov [temp_save], r14
+    mov r14, [save8]
+    call copy_string
+    mov r14, [temp_save]
     jmp next_loop
 
 asterisk: ;Asterisk "*", move word in source pointer into xmm0 then move source read pointer to the next word.
     call isolate_string
     add r12, 2
+    cmp byte [r12], 0x3F
+    je question_mark
     jmp next_loop
 
 vertical_bar: ;Vertical Bar "|", adds a new line.
@@ -437,24 +487,22 @@ ampersand: ;Ampersand, label start point.
 
 exponent: ;Exponent "^", output word in source read pointer
     call copy_string
-    cmp byte [r12], 0x3F
-    je question_mark
     jmp next_loop
 
 question_mark: ;Question mark "?", if else statement
     add r12, 2
     call isolate_database_string
     cmp rdi, rsi
-    jne .false
+    jne false
     call compare
-    jnc .false
+    jnc false
 
-.true:
+true:
     cmp byte [r12], 0x26
     je ampersand
     jmp next_loop
 
-.false:
+false:
     cmp byte [r12], 0x26
     jne dollar_sign
     call database_skip_string
@@ -462,6 +510,20 @@ question_mark: ;Question mark "?", if else statement
     cmp byte [r12], 0x26
     je ampersand
     jmp next_loop
+
+q_lower:
+    add r12, 2
+    cmp byte [r12], 0x31
+    sete [save9]
+    add r12, 2
+    jmp next_loop
+
+q_upper:
+    add r12, 2
+    cmp byte [save9], 1
+    je true
+    jne false
+
 
 comma: ;Comma ",", add comma
     dec r13
@@ -576,6 +638,7 @@ end:
 
     sub r13, [output_pointer]
     mov [output_size], r13
+
     ; ── Open output file ─────────────────────────────────────────────────────
     mov     rdi, [rsp+40] ; argv[4] = output file
 
@@ -631,7 +694,7 @@ factor_end:
 
     ; ── Close output file ────────────────────────────────────────────────────
     mov     rax, 3 ;close
-    mov     rdi, r14
+    mov     rdi, [output_descriptor]
     syscall
 
     ; ── Exit success ─────────────────────────────────────────────────────────
@@ -676,8 +739,13 @@ invalid_database_error:
     mov     rdi, 2; terminal
     syscall
 
+
+    mov     [output_pointer], r12
+    lea     r13, [r12+32]
+    call    null_to_space
+
     mov     rsi, r12
-    mov     rdx, 16
+    mov     rdx, 32
     mov     rax, 1; write
     mov     rdi, 2; terminal
     syscall
@@ -695,10 +763,10 @@ invalid_source_error:
 
     mov     rsi, [error_pointer]
     mov     [output_pointer], rsi
-    lea     r13, [rsi+16]
+    lea     r13, [rsi+32]
     call    null_to_space
 
-    mov     rdx, 16
+    mov     rdx, 32
     mov     rax, 1; write
     mov     rdi, 2; terminal
     syscall
@@ -951,3 +1019,13 @@ section .data
         dq plus
         dq minus
         dq colon
+        dq a_lower
+        dq a_upper
+        dq b_lower
+        dq b_upper
+
+    jump_table3:
+        dq c_lower
+        dq c_upper
+        dq q_lower
+        dq q_upper
