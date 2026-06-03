@@ -1,12 +1,11 @@
-bits 64
 section .data
 align 16
-    words1 db 0x61, 0x73, 0x62, 0x79, 0x69, 0x73, 0x6F, 0x66, 0x6F, 0x72, 0x74, 0x6F, 0x73, 0x6F, 0x00, 0x00
- ;           as          by          is          of          or          to          so
+    words1 db 0x61, 0x73, 0x61, 0x74, 0x62, 0x79, 0x69, 0x73, 0x6F, 0x66, 0x6F, 0x72, 0x74, 0x6F, 0x69, 0x6E
+ ;            as          at         by           is          of          or          to          in
     words2 db 0x61, 0x6E, 0x64, 0x00, 0x66, 0x6F, 0x72, 0x00, 0x68, 0x61, 0x73, 0x00, 0x74, 0x68, 0x65, 0x00
- ;          and                     for                     has                     the
-    words3 db 0x66, 0x72, 0x6F, 0x6D, 0x69, 0x6E, 0x74, 0x6F, 0x74, 0x68, 0x61, 0x74, 0x77, 0x69, 0x74, 0x68
- ;         from                    into                    that                    with
+ ;            and                     for                     has                     the
+    words3 db 0x66, 0x72, 0x6F, 0x6D, 0x69, 0x6E, 0x74, 0x6F, 0x74, 0x68, 0x61, 0x6E, 0x77, 0x69, 0x74, 0x68
+ ;            from                    into                    than                    with
     halfmask0: db 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
     halfmask1: db 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
     halfmask2: db 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
@@ -57,6 +56,7 @@ main_loop:
     pcmpeqb xmm0, xmm1
     pmovmskb eax, xmm0
     tzcnt cx, ax
+    jc full
     cmp cx, 5 ;cx is string length
     jae skip
     cmp cx, 2
@@ -71,35 +71,40 @@ two:
     .as:
         pextrw rbx, xmm15, 0
         cmp rax, rbx
+        jne .at
+        jmp found_2
+    .at:
+        pextrw rbx, xmm15, 1
+        cmp rax, rbx
         jne .by
         jmp found_2
     .by:
-        pextrw rbx, xmm15, 1
+        pextrw rbx, xmm15, 2
         cmp rax, rbx
         jne .is
         jmp found_2
     .is:
-        pextrw rbx, xmm15, 2
+        pextrw rbx, xmm15, 3
         cmp rax, rbx
         jne .of
         jmp found_2
     .of:
-        pextrw rbx, xmm15, 3
+        pextrw rbx, xmm15, 4
         cmp rax, rbx
         jne .or
         jmp found_2
     .or:
-        pextrw rbx, xmm15, 4
+        pextrw rbx, xmm15, 5
         cmp rax, rbx
         jne .to
         jmp found_2
     .to:
-        pextrw rbx, xmm15, 5
+        pextrw rbx, xmm15, 6
         cmp rax, rbx
         jne .so
         jmp found_2
     .so:
-        pextrw rbx, xmm15, 6
+        pextrw rbx, xmm15, 7
         cmp rax, rbx
         jne skip
         jmp found_2
@@ -158,6 +163,18 @@ found_3:
 found_4:
     add r9, 5
     jmp main_loop
+
+full:
+    movdqu [r8], xmm1
+    add r8, 16
+    add r9, 16
+    movdqu xmm1, [r9]
+    pxor xmm0, xmm0
+    pcmpeqb xmm0, xmm1
+    pmovmskb eax, xmm0
+    tzcnt cx, ax
+    jc full
+    jmp skip
 
 skip:
     movdqu [r8], xmm1
