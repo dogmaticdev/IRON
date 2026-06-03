@@ -1,9 +1,7 @@
-;nasm -f elf64 factorize.asm -o factorize.o && ld factorize.o -o factorize
-;./factorize instructions.txt instructions.db
-BITS 64
 section .data
 align 16
     ampersands: db 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26
+    dollars:    db 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24
     colons:     db 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A
     semicolons: db 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B
 extern input_pointer
@@ -23,6 +21,7 @@ factor:
     movdqa xmm15, [ampersands]
     movdqa xmm12, [semicolons]
     movdqa xmm11, [colons]
+    movdqa xmm9, [dollars]
     pxor xmm10, xmm10
     xor rcx, rcx
     .main_loop:
@@ -63,11 +62,18 @@ factor:
     .add_null:
         add r13, rdx
         add r14, rdx
+        
     .add_null_skip:
         call string_copy
+        je .null_fail
         pxor xmm14, xmm14
         movdqu [r13], xmm14
         add r13, 5
+        jmp .main_loop
+
+    .null_fail:
+        pxor xmm14, xmm14
+        movdqu [r13], xmm14
         jmp .main_loop
 
     .second_part:
@@ -119,6 +125,7 @@ factor:
     .ampersand_offset_zero:
         movdqu xmm1, [r14]
         call isolate_string
+        je .ampersand_fail
         movdqa xmm0, xmm1
         mov rax, 0x24
         pinsrb xmm0, eax, 0
@@ -129,13 +136,12 @@ factor:
     .ampersand_loop:
         cmp r14, r15
         jae .ampersand_lost
-        mov al, [r14]
-        cmp al, 0x26 ; &
-        je .ampersand_skip
-        cmp al, 0x3A ; :
-        je .ampersand_skip
-        cmp al, 0x24 ; $
-        jne .ampersand_small_skip
+        movdqu xmm1, [r14]
+        pcmpeqb xmm1, xmm9
+        pmovmskb eax, xmm1
+        tzcnt cx, ax
+        jc .ampersand_none
+        add r14, rcx
         movdqu xmm1, [r14]
         call isolate_string
         call compare
@@ -144,6 +150,15 @@ factor:
         sub r14, r13
         mov [r13], r14d
         add r13, 5
+        mov r14, r13
+        jmp .second_loop
+
+    .ampersand_none:
+        add r14, 16
+        jmp .ampersand_loop
+
+    .ampersand_fail:
+        add r13, 2
         mov r14, r13
         jmp .second_loop
 
@@ -167,6 +182,7 @@ factor:
     .semicolon_offset_zero:
         movdqu xmm1, [r14]
         call isolate_string
+        je .semicolon_fail
         movdqa xmm0, xmm1
         mov rax, 0x3A ; :
         pinsrb xmm0, eax, 0
@@ -191,6 +207,11 @@ factor:
         mov [r14], r12d
         add r14, 5
         jmp .semicolon_loop
+
+    .semicolon_fail:
+        add r13, 2
+        mov r14, r13
+        jmp .second_loop
 
     .semicolon_lost:
         mov r14, r13
@@ -219,7 +240,9 @@ isolate_string:
     shl ecx, 4
     movdqa xmm1, [bitmask0 + rcx]
     pandn xmm1, xmm14
+    shr ecx, 4
 .end:
+    cmp rcx, 1
     ret
 
 string_copy:
@@ -236,6 +259,7 @@ string_copy:
     inc rcx
     add r13, rcx
     add r14, rcx
+    cmp rcx, 2
     ret
 
 .next_string:
