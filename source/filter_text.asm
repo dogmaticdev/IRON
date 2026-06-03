@@ -1,11 +1,12 @@
-BITS 64
 section .data
 align 16
     spaces       db 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 ; " "
     temp         db 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21 ; " "
     quotes       db 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22 ; "
-    lefts        db 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28, 0x28 ; "("
-    rights       db 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29, 0x29 ; ")"
+    lefts        db 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C, 0x5C ; "/"
+    rights       db 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A ; "/n"
+    left_square  db 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B, 0x5B ; "["
+    right_square db 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D, 0x5D ; "]"
     commas       db 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C, 0x2C ; ","
     colons       db 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A ; ":"
     extern input_pointer
@@ -41,6 +42,12 @@ filter_text:
     movdqa xmm9, [temp]
     %define Temp xmm9
 
+    movdqa xmm8, [left_square]
+    %define Left_Square xmm8
+
+    movdqa xmm7, [right_square]
+    %define Right_Square xmm7
+
     lea r12, [rel jump_table]
     %define Jump_Table r12
 
@@ -67,7 +74,8 @@ main_loop:
     cmp Read_Pointer, End_Pointer
     jae end
     movdqu String, [Read_Pointer]
-    mov rbx, 4
+    mov rbx, 5
+    mov rdx, 16
     ; i may need to xor rdx here?
 
 .check_quote:
@@ -85,12 +93,13 @@ main_loop:
     pcmpeqb Copy, Left
     pmovmskb eax, Copy
     tzcnt cx, ax
-    jc .check_colon
+    jc .check_comma
     jz start_comment
     mov rax, 1
     cmp rdx, rcx
     cmova rdx, rcx
     cmova rbx, rax
+    jmp .check_comma
 
 .check_colon:
     movdqa Copy, String
@@ -109,15 +118,27 @@ main_loop:
     pcmpeqb Copy, Comma
     pmovmskb eax, Copy
     tzcnt cx, ax
-    jc route
+    jc .check_square
     jz zero_comma
     mov rax, 3
     cmp rdx, rcx
     cmova rdx, rcx
     cmova rbx, rax
 
+.check_square:
+    movdqa Copy, String
+    pcmpeqb Copy, Left_Square
+    pmovmskb eax, Copy
+    tzcnt cx, ax
+    jc route
+    jz zero_square
+    mov rax, 4
+    cmp rdx, rcx
+    cmova rdx, rcx
+    cmova rbx, rax
+
 route:
-    cmp rbx, 4
+    cmp rbx, 5
     je skip
     jmp [Jump_Table + rbx*8]
 
@@ -172,6 +193,57 @@ find_end_quote:
     add Read_Pointer, 16
     jmp quote_again
 
+zero_square:
+    movdqu [Write_Pointer], String
+    inc Write_Pointer
+    inc Read_Pointer
+    jmp square_again
+
+square_again:
+    cmp Read_Pointer, End_Pointer
+    jae end
+    movdqu String, [Read_Pointer]
+    movdqa Copy, String
+    pcmpeqb Copy, Right_Square
+    pmovmskb eax, Copy
+    tzcnt dx, ax
+    jc next_square
+    jmp start_square
+
+do_square:
+    movdqu [Write_Pointer], String
+    inc rdx
+    add Write_Pointer, rdx
+    add Read_Pointer, rdx
+    jmp square_again
+
+start_square:
+    shl rdx, 4
+    movdqa xmm2, [bitmask0 + rdx]
+    movdqa Copy, String
+    pcmpeqb Copy, Space
+    pandn xmm2, Copy
+    por String, xmm2
+
+    shr rdx, 4
+    inc rdx
+    movdqu [Write_Pointer], String
+    add Write_Pointer, rdx
+    add Read_Pointer, rdx
+    jmp main_loop
+
+next_square:
+    movdqa Copy, String
+    pcmpeqb Copy, Space
+    por String, Copy
+
+find_end_square:
+    movdqu [Write_Pointer], String
+
+    add Write_Pointer, 16
+    add Read_Pointer, 16
+    jmp square_again
+
 comment_again:
     add Read_Pointer, 16
     cmp Read_Pointer, End_Pointer
@@ -223,8 +295,10 @@ start_comma:
     mov eax, 0x00002C00
     movdqu [Write_Pointer], String
     add Write_Pointer, rdx
+    add Read_Pointer, rdx
     mov [Write_Pointer], eax
     add Write_Pointer, 3
+    inc Read_Pointer
     jmp main_loop
 
 skip:
@@ -247,4 +321,4 @@ align 16
         dq do_comment
         dq do_colon
         dq start_comma
-
+        dq do_square
