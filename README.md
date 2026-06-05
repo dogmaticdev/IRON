@@ -82,7 +82,8 @@ ld iron_compiler.o delete_filler.o filter_text.o setup.o clear_whitespace.o -o i
 
 # Examples
 If you would like to see a working example of IRON in practice check out the [example.MD](https://github.com/dogmaticdev/IRON/blob/main/examples/example.md) in the examples folder.
-I also made a prototype language called [Idiomatic](https://github.com/dogmaticdev/Idiomatic) that bootstraps using IRON 
+
+I also made a prototype language called [Idiomatic](https://github.com/dogmaticdev/Idiomatic) that bootstraps using IRON.
 
 # Syntax
 IRON intentionally uses one symbol per instruction for minimum file size.
