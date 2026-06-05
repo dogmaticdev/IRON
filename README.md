@@ -253,7 +253,7 @@ EX:
 ```
 Outputs:
 ```
-Hello World`
+"Hello World"
 ```
 At the end of "Hello World", the process returns back to the start of the database and searches for the word using the jump tables.
 So the second instruction is ignored.
