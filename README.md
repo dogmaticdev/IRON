@@ -225,12 +225,15 @@ a plus does the opposite of minus and adds a space.
 IRON doesn't stop you from printing anything out.
 Ex:
 ```
-= = = &Print
+= = = &
 ``` 
 Would print out: 
 ```
-= &Print
+= &
 ```
+Its okay to print symbols by themselves but do not print out a label, i.e. 
+Not okay:`= &print`
+Okay:`= & - = print`
 
 # ","
 this just adds a comma
