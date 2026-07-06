@@ -287,12 +287,12 @@ In this case, "&Print" is the "if string is print" option and "&Something_Else" 
 "*" stores the word in the source code file to the register and jumps to the next word in the source code file. 
 It doesn't print anything out and is used to skip words.
 Ex: "turn 8bit param1"
-Before: "+"
+Before: "*"
 ```
 Register: turn
 Source Code Word: 8bit
 ```
-After: "+"
+After: "*"
 ```
 Register: 8bit
 Source Code Word: param1
