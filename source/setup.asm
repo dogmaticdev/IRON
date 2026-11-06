@@ -1,5 +1,4 @@
-;nasm -f elf64 factorize.asm -o factorize.o && ld factorize.o -o factorize
-;./factorize instructions.txt instructions.db
+; SPDX-License-Identifier: Apache-2.0
 BITS 64
 section .data
 align 16
