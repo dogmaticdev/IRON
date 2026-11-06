@@ -1,9 +1,16 @@
+;nasm -f elf64 factorize.asm -o factorize.o && ld factorize.o -o factorize
+;./factorize instructions.txt instructions.db
+BITS 64
 section .data
 align 16
     ampersands: db 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26, 0x26
     dollars:    db 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24
-    colons:     db 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A, 0x3A
-    semicolons: db 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B, 0x3B
+    zeros:      db 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30
+    nines:      db 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39, 0x39
+    second_sub: db 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
+    A:          db 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40
+    F:          db 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46, 0x46
+    index:      db 0x0F, 0x0D, 0x0B, 0x09, 0x07, 0x05, 0x03, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 extern input_pointer
 extern input_size
 extern output_pointer
@@ -13,279 +20,249 @@ section .text
     global factor
 factor:
     ; ── Allocate Pointers ────────────────────────────────────────────────────
-    mov r15, [input_pointer]
-    mov r14, r15
-    add r15, [input_size]
-    mov r13, [output_pointer]
+    mov r15, [input_pointer]  
+    mov r14, r15              ;r14 points to the input (first) memory region
+    add r15, [input_size]     ;r15 points to the end of the input (first) memory region
+    mov r13, [output_pointer] ;r13 points to the ouput (second) memory region
 
     movdqa xmm15, [ampersands]
-    movdqa xmm12, [semicolons]
-    movdqa xmm11, [colons]
-    movdqa xmm9, [dollars]
-    pxor xmm10, xmm10
+    movdqa xmm14, [zeros]
+    movdqa xmm13, [nines]
+    movdqa xmm12, [A]
+    movdqa xmm11, [F]
+    movdqa xmm10, [second_sub]
+    pxor xmm9, xmm9
+    movdqa xmm8, [index]
+    movdqa xmm7, [dollars]
     xor rcx, rcx
+    xor r12, r12
     .main_loop:
         cmp r14, r15
-        jae .second_part
+        jae .grab_offset
         movdqu xmm0, [r14]
-        mov rbx, 1
-        xor rdx, rdx
-
-    .check_ampersand:
-        movdqa xmm1, xmm0
-        pcmpeqb xmm1, xmm15
-        pmovmskb eax, xmm1
-        tzcnt cx, ax
-        jc .check_colons
-        jz .add_null_skip
-        mov rdx, rcx
-        xor rbx, rbx
-
-    .check_colons:
-        movdqa xmm1, xmm0
-        pcmpeqb xmm1, xmm11
-        pmovmskb eax, xmm1
-        tzcnt cx, ax
-        jc .route
-        jz .add_null_skip
-        mov rdx, rcx
-        xor rbx, rbx
-
-    .route:
-        movdqu [r13], xmm0
-        cmp rbx, 1
-        jne .add_null
-        add r13, 16
-        add r14, 16
-        jmp .main_loop
-
-    .add_null:
-        add r13, rdx
-        add r14, rdx
         
-    .add_null_skip:
-        call string_copy
-        je .null_fail
-        pxor xmm14, xmm14
-        movdqu [r13], xmm14
-        add r13, 5
-        jmp .main_loop
+        movdqa xmm1, xmm0
+        movdqa xmm2, xmm0
+        pcmpeqb xmm1, xmm15 ;ampersand
+        pcmpeqb xmm2, xmm14 ;0s
+        por xmm1, xmm2
 
-    .null_fail:
-        pxor xmm14, xmm14
-        movdqu [r13], xmm14
-        jmp .main_loop
+        pmovmskb eax, xmm1
+        tzcnt cx, ax
+        jc .next_loop
+        ; jz .skip_initial_copy
 
-    .second_part:
+        movdqu [r13], xmm0
+        add r13, rcx
+        add r14, rcx
+
+        .route:
+            cmp byte [r14-1], 0x00
+            jne .invalid_op_code
+            cmp byte [r14], 0x26
+            je .add_null
+        
+        .hex_to_int:
+            cmp byte [r14+1], 0x78
+            jne .invalid_op_code
+            add r14, 2
+            movdqu xmm0, [r14]
+            movdqa xmm1, xmm0
+
+            pcmpeqb xmm1, xmm9 ; Empty Register
+            pmovmskb eax, xmm1
+            tzcnt cx, ax
+            add r14, rcx
+            inc r14
+
+            shl rcx, 4
+            movdqa xmm2, [bitmask0 + rcx]
+
+            pandn xmm2, xmm0
+
+            movdqa xmm1, xmm2
+            movdqa xmm3, xmm2
+            movdqa xmm4, xmm2
+
+            pcmpgtb xmm1, xmm11 ; Fs
+            pcmpgtb xmm2, xmm12 ; As
+            pandn xmm1, xmm2
+            pand xmm1, xmm0
+            psubusb xmm1, xmm10 ; Second Subtraction
+
+            pcmpgtb xmm3, xmm13 ; Nines
+            pcmpgtb xmm4, xmm14 ; Zeros
+            pandn xmm3, xmm4
+            pand xmm3, xmm0
+            psubusb xmm3, xmm14 ; Zeros
+
+            por xmm1, xmm3
+            movdqa xmm0, xmm1
+            psllw xmm1, 12
+            por xmm1, xmm0
+            pshufb xmm1, xmm8 ; Index
+            
+            pextrq rax, xmm1, 0
+            shr rcx, 2
+            neg rcx
+            add rcx, 64
+            shr rax, cl
+
+            mov [r13], rax
+            add r13, 9
+            jmp .main_loop
+
+        .invalid_op_code:
+            inc r14
+            inc r13
+            jmp .main_loop
+
+        .next_loop:
+            movdqu [r13], xmm0
+            add r13, 16
+            add r14, 16
+            jmp .main_loop
+
+        .add_null:
+            movdqu xmm3, [r14]
+            pcmpeqb xmm9, xmm3
+            pmovmskb eax, xmm9
+            pxor xmm9, xmm9
+            tzcnt cx, ax
+            movdqu [r13], xmm3
+            inc rcx
+            add r13, rcx
+            add r14, rcx
+            cmp rcx, 2
+            je .main_loop
+            mov [r13], r12
+            add r13, 5
+            jmp .main_loop
+
+    .grab_offset:
         mov r15, r13
         sub r13, [output_pointer]
         mov [output_size], r13
         mov r14, [output_pointer]
         mov r13, r14
 
-    .second_loop:
-        cmp r14, r15
+    .find_ampersand:
+        cmp r14, r15 ;r14 output read pointer, r15 output end pointer
         jae .end
         movdqu xmm0, [r14]
-        mov rbx, 2
-        xor rdx, rdx
-
-    .scan_ampersand:
         movdqa xmm1, xmm0
-        pcmpeqb xmm1, xmm15
+        pcmpeqb xmm1, xmm15 ; ampersand
         pmovmskb eax, xmm1
         tzcnt cx, ax
-        jc .scan_semicolon
-        jz .ampersand_offset_zero
-        mov rdx, rcx
-        xor rbx, rbx
-
-    .scan_semicolon:
-        movdqa xmm1, xmm0
-        pcmpeqb xmm1, xmm12
-        pmovmskb eax, xmm1
-        tzcnt cx, ax
-        jc .second_route
-        jz .semicolon_offset_zero
-        mov rax, 1
-        cmp rdx, rcx
-        cmova rdx, rcx
-        cmova rbx, rax
-
-    .second_route:
-        cmp rbx, 1
-        jb .ampersand_offset
-        je .semicolon_offset
-        add r14, 16
-        jmp .second_loop
-
-    .ampersand_offset:
-        add r14, rdx
-
-    .ampersand_offset_zero:
-        movdqu xmm1, [r14]
-        call isolate_string
-        je .ampersand_fail
-        movdqa xmm0, xmm1
-        mov rax, 0x24
-        pinsrb xmm0, eax, 0
-        call skip_string
-        mov r13, r14
-        add r14, 5 ;skips the 4 byte address.
-
-    .ampersand_loop:
-        cmp r14, r15
-        jae .ampersand_lost
-        movdqu xmm1, [r14]
-        pcmpeqb xmm1, xmm9
-        pmovmskb eax, xmm1
-        tzcnt cx, ax
-        jc .ampersand_none
+        jc .again ; the ampersand was not found in the register. jumps 16 bytes and tries again.
+        cmp byte [r14-1], 0x00 ; checks if the label starts with a &
+        jne .invalid_label
+        cmp byte [r14+1], 0x00 ; checks if the label has atleast one character
+        je  .short_label
         add r14, rcx
-        movdqu xmm1, [r14]
-        call isolate_string
-        call compare
-        jnc .ampersand_small_skip
-        call skip_string
-        sub r14, r13
-        mov [r13], r14d
-        add r13, 5
-        mov r14, r13
-        jmp .second_loop
+        movdqu xmm0, [r14]
 
-    .ampersand_none:
-        add r14, 16
-        jmp .ampersand_loop
+        .store_label:
+            movdqa xmm1, xmm0
+            pcmpeqb xmm1, xmm9
+            pmovmskb eax, xmm1 
+            tzcnt cx, ax
+            jc .full_register
+            cmp rcx, 1
+            je .empty_register
 
-    .ampersand_fail:
-        add r13, 2
-        mov r14, r13
-        jmp .second_loop
+            mov rbx, rcx
+            mov r12, rbx ; r12 is the string length
+            inc r12 ; accounts for the null byte
 
-    .ampersand_lost:
-        add r13, 5
-        mov r14, r13
-        jmp .second_loop
+            shl rbx, 4
+            
+            movdqa xmm1, xmm0
+            movdqa xmm0, [bitmask0 + rbx] ; erases the unnecessary info
+            pandn xmm0, xmm1 
+            jmp .skip2
 
-    .ampersand_skip:
-        call skip_string
-        add r14, 5
-        jmp .ampersand_loop
+        .again:
+            add r14, 16
+            jmp .find_ampersand
 
-    .ampersand_small_skip:
-        call skip_string
-        jmp .ampersand_loop
+        .invalid_label:
+            inc r14
+            jmp .find_ampersand
+        
+        .short_label:
+            add r14, 2
+            jmp .find_ampersand
 
-    .semicolon_offset:
-        add r14, rdx
+        .full_register:
+            mov rbx, 16
+            mov r12, rbx ; r12 is the string length
+            inc r12 ; accounts for the null byte
+            movdqa xmm0, xmm1
+            jmp .skip2
 
-    .semicolon_offset_zero:
-        movdqu xmm1, [r14]
-        call isolate_string
-        je .semicolon_fail
-        movdqa xmm0, xmm1
-        mov rax, 0x3A ; :
-        pinsrb xmm0, eax, 0
-        call skip_string
-        mov r13, r14
+        .empty_register:
+            add r14, 2
+            jmp .find_ampersand
 
-    .semicolon_loop:
-        cmp r14, r15
-        jae .semicolon_lost
-        mov al, [r14]
-        cmp al, 0x26 ; &
-        je .semicolon_skip
-        cmp al, 0x3A ; :
-        jne .semicolon_small_skip
-        movdqu xmm1, [r14]
-        call isolate_string
-        call compare
-        jnc .semicolon_skip
-        call skip_string
-        mov r12, r14
-        sub r12, r13
-        mov [r14], r12d
-        add r14, 5
-        jmp .semicolon_loop
+        .skip2:
+            mov r13, r14 ; r13 stores the jump value pointer
+            add r14, r12 ; r14 points to the jump value
+            add r14, 5   ; r14 reads ahead for the jump endpoint
+            mov eax, 0x24 ; $
+            pinsrb xmm0, eax, 0 ;$ changes the & to a $
 
-    .semicolon_fail:
-        add r13, 2
-        mov r14, r13
-        jmp .second_loop
+        .find_dollar:
+            cmp r14, r15
+            jae .lost
+            movdqu xmm1, [r14]
 
-    .semicolon_lost:
-        mov r14, r13
-        jmp .second_loop
+            movdqa xmm2, xmm1
+            pcmpeqb xmm2, xmm7 ; dollars
+            pmovmskb eax, xmm2
+            tzcnt cx, ax
+            jc .dollar_again
+            jz .dollar_skip
+            add r14, rcx
+            movdqu xmm1, [r14]
 
-    .semicolon_skip:
-        call skip_string
-        add r14, 5
-        jmp .semicolon_loop
+            .dollar_skip: ; Make sure xmm9 is always empty
+                movdqa xmm2, xmm1
+                pcmpeqb xmm2, xmm0 ; initial label
+                pmovmskb eax, xmm2
+                not ax
+                tzcnt cx, ax
 
-    .semicolon_small_skip:
-        call skip_string
-        jmp .semicolon_loop
+                cmp rcx, r12
+                jae .found
+                
+                movdqa xmm2, xmm1
+                pcmpeqb xmm2, xmm9
+                pmovmskb eax, xmm2
+                tzcnt cx, ax
+                add r14, rcx
+                jmp .find_dollar
+
+            .found:
+                sub r14, r13
+                add r13, r12
+                mov [r13], r14d
+                add r13, 5
+                mov r14, r13
+                jmp .find_ampersand
+
+            .dollar_again:
+                add r14, 16
+                jmp .find_dollar
+
+            .dollar_zero:
+                add r14, 5
+                jmp .find_dollar
+
+            .lost:
+                add r13, 5
+                mov r14, r13
+                jmp .find_ampersand
 
     .end:
         ret
-
-isolate_string:
-    movdqa xmm14, xmm1
-    pxor xmm1, xmm1
-    pcmpeqb xmm1, xmm14
-    pmovmskb eax, xmm1
-    tzcnt cx, ax
-    jc .end
-    jz .end
-    shl ecx, 4
-    movdqa xmm1, [bitmask0 + rcx]
-    pandn xmm1, xmm14
-    shr ecx, 4
-.end:
-    cmp rcx, 1
-    ret
-
-string_copy:
-    pxor xmm14, xmm14
-    movdqu xmm13, [r14]
-    pcmpeqb xmm14, xmm13
-    pmovmskb eax, xmm14
-    tzcnt cx, ax
-    jc .next_string
-    jz .end
-    movdqu [r13], xmm13
-
-.end:
-    inc rcx
-    add r13, rcx
-    add r14, rcx
-    cmp rcx, 2
-    ret
-
-.next_string:
-    movdqu [r13], xmm13
-    add r14, 16
-    add r13, 16
-    jmp string_copy
-
-skip_string: ; +
-    movdqu xmm13, [r14]
-    pcmpeqb xmm13, xmm10
-    pmovmskb eax, xmm13
-    tzcnt cx, ax
-    jc .next_string
-
-    inc rcx
-    add r14, rcx
-    ret
-
-.next_string:
-    add r14, 16
-    jmp skip_string
-
-compare:
-    pcmpeqb xmm1, xmm0
-    pmovmskb eax, xmm1
-    not eax
-    tzcnt cx, ax
-    ret
